@@ -1,0 +1,4 @@
+/target/
+/.credentials/
+/node_modules/
+*.log

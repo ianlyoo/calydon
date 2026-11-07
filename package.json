@@ -1,0 +1,13 @@
+{
+  "name": "calydon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A memecoin you hunt together on NEAR: commit against the beast's HP before the deadline.",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "verify": "cargo test --locked -- --nocapture --test-threads=1",
+    "simulate": "cargo run --locked --release --quiet --example simulate --",
+    "build-wasm": "bash scripts/build-wasm.sh",
+    "execute-testnet": "cargo test --locked --test testnet -- --ignored --nocapture"
+  }
+}
