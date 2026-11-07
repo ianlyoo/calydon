@@ -2,7 +2,7 @@
 //!   [--hp-up 12500 --hp-down 8000] [--split-k 8] [--fee-max-bps 100] [--set config_field=value ...]`
 //!
 //! Runs the strategy simulation (hunts 1..=60; hunt 0 is an empty setup hunt) on a local sandbox against the committed res/calydon.wasm, once per
-//! reward rule (A = HpCap, B = EarlyWeight), and writes sim/seed-<seed>-hp<bps>[-ctl<up>-<down>].json.
+//! reward rule (A = HpCap, B = EarlyWeight), and writes sim/seed-<seed>-hp<bps>[-ctl<up>-<down>][-<field><value>].json.
 //!
 //! Model: each hunt has ROUNDS rounds of STEP blocks. In each round the hunters act in a seeded
 //! order, each seeing what was committed before it (as if transactions landed one by one); the
@@ -13,9 +13,9 @@
 //! and every claim instead of predicting it; stakes, escaped refunds and the hunt's committed total
 //! are still checked against the simulator's own arithmetic.
 //!
-//! A split whale is one solo whale's holding spread evenly over `--split-k` accounts; when one of its
-//! accounts comes up in round 1 and its accounts together can fill the HP still missing, it fills
-//! it with one commit per account. Each extra account needs its own NEP-145 storage deposit (NEAR,
+//! A split whale is a solo whale's twin (same drawn holding) spread evenly over `--split-k` accounts;
+//! when its first account comes up in round 1 and its accounts together can fill the HP still missing,
+//! it fills it with one commit per account. Each extra account needs its own NEP-145 storage deposit (NEAR,
 //! reported next to the CAL results).
 #[path = "../tests/common/mod.rs"]
 mod common;
@@ -37,7 +37,7 @@ const STEP: u64 = 25;
 const SIT_OUT: u64 = 3;
 const TRIBUTE_BPS: u32 = 100;
 /// Which branch this simulator was built on (main code = r0).
-const VARIANT: &str = "r0";
+const VARIANT: &str = "r2";
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Strategy {
@@ -101,7 +101,8 @@ struct Hunter {
 }
 
 fn population(seed: u64, n: usize, split_k: usize) -> Vec<Hunter> {
-    // 5% whales (about half wait-and-fill, a quarter solo, a quarter split), the rest split
+    // 5% whales (about half wait-and-fill, a quarter solo, a quarter split whales that are the solo
+    // whales' twins), the rest split
     // 35/35/25 early/watcher/quitter. A split whale's extra accounts are appended after the n hunters.
     let whales = (n / 20).max(2);
     let late = whales / 2;
@@ -109,7 +110,9 @@ fn population(seed: u64, n: usize, split_k: usize) -> Vec<Hunter> {
     let mut out = vec![];
     let mut extra = vec![];
     for i in 0..n {
-        let mut r = Rng::new(&[seed, 1, i as u64]);
+        // A split whale is the twin of a solo whale: it draws the same holding.
+        let twin = if (solo..whales).contains(&i) { i - (whales - solo) } else { i };
+        let mut r = Rng::new(&[seed, 1, twin as u64]);
         let strategy = if i < late {
             Strategy::LateWhale
         } else if i < solo {
@@ -203,6 +206,10 @@ impl Sim<'_> {
                 let hunter = &self.hunters[i];
                 let gap = hp.saturating_sub(running);
                 if hunter.strategy == Strategy::SplitWhale {
+                    // It decides once, at its first account's place in the order, like its solo twin.
+                    if hunter.leader != i {
+                        continue;
+                    }
                     let group = &self.members[hunter.leader];
                     for &m in group {
                         acted[m] = true;
@@ -475,7 +482,8 @@ async fn main() -> Result<()> {
     });
     let levers = if (burn_bps, hoard_bps) == (1_000, 100) { String::new() } else { format!("-burn{burn_bps}-hoard{hoard_bps}") };
     let ctl = if (hp_up, hp_down) == (12_500, 8_000) { String::new() } else { format!("-ctl{hp_up}-{hp_down}") };
-    let name = format!("seed-{seed}-hp{hp0_bps}{levers}{ctl}.json");
+    let tags: String = overrides.iter().map(|(k, v)| format!("-{}{v}", k.trim_end_matches("_bps").replace('_', ""))).collect();
+    let name = format!("seed-{seed}-hp{hp0_bps}{levers}{ctl}{tags}.json");
     let path = format!("{}/sim/{name}", env!("CARGO_MANIFEST_DIR"));
     std::fs::create_dir_all(format!("{}/sim", env!("CARGO_MANIFEST_DIR")))?;
     std::fs::write(&path, serde_json::to_string_pretty(&report)? + "\n")?;

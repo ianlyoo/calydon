@@ -20,7 +20,7 @@ pub fn config(rule: &str, first_hp: u128, hunt_blocks: u64, step_blocks: u64) ->
     json!({
         "name": "Calydon", "symbol": "CAL", "decimals": 18, "rule": rule,
         "first_hp": first_hp.to_string(), "hunt_blocks": hunt_blocks, "step_blocks": step_blocks,
-        "tribute_bps": 100, "burn_bps": 1_000, "hp_up_bps": 12_500, "hp_down_bps": 8_000,
+        "tribute_bps": 100, "fill_fee_bps": 0, "burn_bps": 1_000, "hp_up_bps": 12_500, "hp_down_bps": 8_000,
     })
 }
 

@@ -4,6 +4,8 @@
 //! deadline; anyone calls `resolve` after it; each hunter calls `claim` once.
 //! - Slain (committed >= HP): stake back plus a share of the hoard, rounded down. Next HP x1.25.
 //! - Escaped: stake back minus 10%, rounded up, and that part burns. Next HP x0.8.
+//! Variant R2: the entry fee rises with how full the bar is when each token goes in (see `fill_fee`)
+//! and is paid into the hoard.
 //!
 //! The supply is created once at `new`; nothing ever mints again, so it only falls (escape burns).
 //! Every parameter is fixed at `new` and readable through `config`. There is no owner, setter or pause.
@@ -52,6 +54,9 @@ pub struct Config {
     pub step_blocks: u64,
     /// Entry fee on `commit`, paid on top of the stake into the hoard, rounded up.
     pub tribute_bps: u32,
+    /// Variant R2: extra entry fee per token, rising linearly from 0 at an empty bar to this at a
+    /// full one (and this past the HP); paid into the hoard with the tribute. See `fill_fee`.
+    pub fill_fee_bps: u32,
     /// Part of an escaped stake that burns, rounded up.
     pub burn_bps: u32,
     pub hp_up_bps: u32,
@@ -128,6 +133,22 @@ pub fn floor_bps(amount: u128, bps: u32) -> u128 {
     (U256::from(amount) * U256::from(bps) / U256::from(10_000u32)).as_u128()
 }
 
+/// Variant R2. Entry fee on `stake` tokens committed when `before` was already committed against
+/// `hp`: the token at fill level x pays tribute_bps + fill_fee_bps x min(x, hp) / hp, summed over
+/// the tokens of the stake and rounded up once. The sum is additive over consecutive parts, so a
+/// stake cut into parts that land one after another pays the same before rounding and never less after it.
+pub fn fill_fee(before: u128, stake: u128, hp: u128, tribute_bps: u32, fill_fee_bps: u32) -> u128 {
+    let a = U256::from(before.min(hp));
+    let b = U256::from(before.saturating_add(stake).min(hp));
+    let (s, h) = (U256::from(stake), U256::from(hp));
+    let above = s - (b - a);
+    let (t, f) = (U256::from(tribute_bps), U256::from(fill_fee_bps));
+    let two = U256::from(2u8);
+    let num: U256 = t * s * h * two + f * (b * b - a * a) + f * h * above * two;
+    let (q, r) = num.div_mod(h * U256::from(20_000u32));
+    q.as_u128() + !r.is_zero() as u128
+}
+
 /// A hunter's share of a slain hunt's pot: pot x weight / total weight, rounded down.
 pub fn share(pot: u128, weight: u128, total_weight: u128) -> u128 {
     (U256::from(pot) * U256::from(weight) / U256::from(total_weight)).as_u128()
@@ -147,6 +168,7 @@ impl Calydon {
     pub fn new(holder: AccountId, supply: U128, hoard: U128, config: Config) -> Self {
         require!(config.hunt_blocks > 0 && config.step_blocks > 0, "BAD_CONFIG");
         require!(config.tribute_bps <= 10_000 && config.burn_bps <= 10_000, "BAD_CONFIG");
+        require!(config.tribute_bps + config.fill_fee_bps <= 10_000, "BAD_CONFIG");
         let mut this = Self {
             token: FungibleToken::new(Key::Accounts),
             config,
@@ -217,7 +239,7 @@ impl Calydon {
             }
         };
         require!(stake > 0, "NOTHING_TO_LOCK");
-        let fee = ceil_bps(stake, self.config.tribute_bps);
+        let fee = fill_fee(hunt.committed.0, stake, hunt.hp.0, self.config.tribute_bps, self.config.fill_fee_bps);
         self.move_tokens(&hunter, &env::current_account_id(), stake + fee, "commit");
         self.hoard += fee;
 
