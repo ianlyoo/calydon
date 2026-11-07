@@ -8,7 +8,9 @@
     "step_blocks": 25,
     "quitter_sits_out": 3,
     "supply_cal": 100000000,
-    "holdings": "whales 30% (5% of hunters), others 30%, non-playing launch holder 39%, hoard 1%"
+    "burn_bps": 1000,
+    "tribute_bps": 100,
+    "holdings": "whales 30% (5% of hunters), others 30%, non-playing launch holder 39%, launch hoard 1%"
   },
   "results": [
     {

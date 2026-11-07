@@ -1,4 +1,4 @@
-//! `npm run simulate -- --seed 494 [--hunters 300] [--hunts 60] [--hp0-bps 300]`
+//! `npm run simulate -- --seed 494 [--hunters 300] [--hunts 60] [--hp0-bps 300] [--burn-bps 1000] [--hoard-bps 100]`
 //!
 //! Runs the strategy simulation (hunts 1..=60; hunt 0 is an empty setup hunt) on a local sandbox against the committed res/calydon.wasm, once per
 //! reward rule (A = HpCap, B = EarlyWeight), and writes sim/seed-<seed>-hp<bps>.json.
@@ -125,6 +125,7 @@ struct Sim<'a> {
     worker: &'a Worker<Sandbox>,
     cal: Contract,
     rule_a: bool,
+    burn_bps: u32,
     accounts: &'a [Account],
     hunters: &'a [Hunter],
     balance: Vec<u128>,
@@ -215,7 +216,7 @@ impl Sim<'_> {
         for (i, got) in paid {
             let stake = entries.iter().find(|e| e.0 == i).unwrap().1;
             if outcome == "Escaped" {
-                ensure!(got == stake - ceil_bps(stake, 1_000), "hunt {n}: escaped refund mismatch for {i}");
+                ensure!(got == stake - ceil_bps(stake, self.burn_bps), "hunt {n}: escaped refund mismatch for {i}");
                 if self.hunters[i].strategy == Strategy::Quitter {
                     self.sit_out_until[i] = n + 1 + SIT_OUT;
                 }
@@ -279,6 +280,8 @@ async fn main() -> Result<()> {
     let n_hunters = arg(&args, "--hunters", 300)? as usize;
     let n_hunts = arg(&args, "--hunts", 60)?;
     let hp0_bps = arg(&args, "--hp0-bps", 300)? as u128;
+    let burn_bps = arg(&args, "--burn-bps", 1_000)? as u32;
+    let hoard_bps = arg(&args, "--hoard-bps", 100)? as u128;
     let started = std::time::Instant::now();
 
     let hunters = population(seed, n_hunters);
@@ -290,9 +293,10 @@ async fn main() -> Result<()> {
 
     let mut results = vec![];
     for (rule, label) in [("HpCap", "A (HP cap)"), ("EarlyWeight", "B (early-commit weighting)")] {
-        let holder_supply = SUPPLY - SUPPLY / 100;
-        let (cal, _) = deploy(&root, &format!("cal-{}", rule.to_lowercase()), holder.id(), holder_supply, SUPPLY / 100,
-            config(rule, SUPPLY * hp0_bps / 10_000 * 5 / 4, ROUNDS * STEP, STEP)).await?;
+        let hoard = SUPPLY * hoard_bps / 10_000;
+        let mut cfg = config(rule, SUPPLY * hp0_bps / 10_000 * 5 / 4, ROUNDS * STEP, STEP);
+        cfg["burn_bps"] = json!(burn_bps);
+        let (cal, _) = deploy(&root, &format!("cal-{}", rule.to_lowercase()), holder.id(), SUPPLY - hoard, hoard, cfg).await?;
         fund(&cal, &holder, &accounts, &hunters).await?;
         // Hunt 0 opened at `new` and its blocks went to funding; it resolves empty (escaped,
         // nothing burns), so hunt 1 opens at exactly the first HP asked for (x1.25 then x0.8).
@@ -300,7 +304,7 @@ async fn main() -> Result<()> {
         pass_deadline(&worker, h0["deadline"].as_u64().unwrap()).await?;
         ensure!(h0["hunters"] == 0 && resolve(&cal, &holder, 0).await?.json::<String>()? == "Escaped");
         let mut sim = Sim {
-            worker: &worker, cal, rule_a: rule == "HpCap", accounts: &accounts, hunters: &hunters,
+            worker: &worker, cal, rule_a: rule == "HpCap", burn_bps, accounts: &accounts, hunters: &hunters,
             balance: hunters.iter().map(|h| h.start).collect(), staked: vec![0; hunters.len()],
             joined: vec![0; hunters.len()], sit_out_until: vec![0; hunters.len()],
         };
@@ -347,15 +351,18 @@ async fn main() -> Result<()> {
         "seed": seed, "hunters": n_hunters, "hp0_bps_of_supply": hp0_bps,
         "wasm_sha256": std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/res/calydon.wasm.sha256"))?.split_whitespace().next(),
         "model": {"rounds": ROUNDS, "step_blocks": STEP, "quitter_sits_out": SIT_OUT, "supply_cal": SUPPLY / C,
-            "holdings": "whales 30% (5% of hunters), others 30%, non-playing launch holder 39%, hoard 1%"},
+            "burn_bps": burn_bps, "tribute_bps": 100,
+            "holdings": format!("whales 30% (5% of hunters), others 30%, non-playing launch holder {}%, launch hoard {}%", 40.0 - hoard_bps as f64 / 100.0, hoard_bps as f64 / 100.0)},
         "results": results,
     });
-    let path = format!("{}/sim/seed-{seed}-hp{hp0_bps}.json", env!("CARGO_MANIFEST_DIR"));
+    let levers = if (burn_bps, hoard_bps) == (1_000, 100) { String::new() } else { format!("-burn{burn_bps}-hoard{hoard_bps}") };
+    let name = format!("seed-{seed}-hp{hp0_bps}{levers}.json");
+    let path = format!("{}/sim/{name}", env!("CARGO_MANIFEST_DIR"));
     std::fs::create_dir_all(format!("{}/sim", env!("CARGO_MANIFEST_DIR")))?;
     std::fs::write(&path, serde_json::to_string_pretty(&report)? + "\n")?;
 
-    println!("Calydon simulation: seed {seed}, {n_hunters} hunters, {n_hunts} hunts, first HP {}% of supply, wasm {}",
-        hp0_bps as f64 / 100.0, report["wasm_sha256"].as_str().unwrap_or("?"));
+    println!("Calydon simulation: seed {seed}, {n_hunters} hunters, {n_hunts} hunts, first HP {}% of supply, burn {}%, launch hoard {}%, wasm {}",
+        hp0_bps as f64 / 100.0, burn_bps as f64 / 100.0, hoard_bps as f64 / 100.0, report["wasm_sha256"].as_str().unwrap_or("?"));
     for r in report["results"].as_array().unwrap() {
         println!("\nRule {}: kill rate {}% ({}/{}), supply {} -> {} CAL", r["rule"].as_str().unwrap(), r["kill_rate_pct"], r["kills"], r["hunts"], SUPPLY / C, r["supply_end_cal"]);
         println!("  {:<28} {:>7} {:>6} {:>12} {:>12} {:>14}", "strategy", "hunters", "joins", "net % start", "net/100 stk", "supply share");
@@ -365,7 +372,7 @@ async fn main() -> Result<()> {
                 cell("net_pct_of_start"), cell("net_per_100_staked"), cell("supply_share_change_pct"));
         }
     }
-    println!("\nWritten: sim/seed-{seed}-hp{hp0_bps}.json ({:?})", started.elapsed());
+    println!("\nWritten: sim/{name} ({:?})", started.elapsed());
     Ok(())
 }
 
