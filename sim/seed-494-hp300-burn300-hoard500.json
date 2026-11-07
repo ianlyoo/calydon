@@ -1,0 +1,1331 @@
+{
+  "seed": 494,
+  "hunters": 300,
+  "hp0_bps_of_supply": 300,
+  "wasm_sha256": "330533053cd863c6a44ecac2e137e41cf4d216e107c3b1e0441a5de803a9b034",
+  "model": {
+    "rounds": 4,
+    "step_blocks": 25,
+    "quitter_sits_out": 3,
+    "supply_cal": 100000000,
+    "burn_bps": 300,
+    "tribute_bps": 100,
+    "holdings": "whales 30% (5% of hunters), others 30%, non-playing launch holder 35%, launch hoard 5%"
+  },
+  "results": [
+    {
+      "rule": "A (HP cap)",
+      "hunts": 60,
+      "kills": 32,
+      "kill_rate_pct": 53.33,
+      "supply_end_cal": 97801903,
+      "burned_cal": 2198096,
+      "strategies": [
+        {
+          "strategy": "early committer",
+          "hunters": 114,
+          "joins": 3246,
+          "net_cal": -522973.0,
+          "net_pct_of_start": -4.4,
+          "net_per_100_staked": -0.62,
+          "supply_share_change_pct": -2.25
+        },
+        {
+          "strategy": "threshold watcher",
+          "hunters": 114,
+          "joins": 209,
+          "net_cal": -225985.0,
+          "net_pct_of_start": -1.86,
+          "net_per_100_staked": -4.0,
+          "supply_share_change_pct": 0.34
+        },
+        {
+          "strategy": "quitter",
+          "hunters": 57,
+          "joins": 820,
+          "net_cal": -1954.0,
+          "net_pct_of_start": -0.03,
+          "net_per_100_staked": -0.01,
+          "supply_share_change_pct": 2.21
+        },
+        {
+          "strategy": "late whale (wait-and-fill)",
+          "hunters": 7,
+          "joins": 0,
+          "net_cal": 0.0,
+          "net_pct_of_start": 0.0,
+          "net_per_100_staked": 0.0,
+          "supply_share_change_pct": 2.25
+        },
+        {
+          "strategy": "solo whale",
+          "hunters": 8,
+          "joins": 32,
+          "net_cal": 3528123.0,
+          "net_pct_of_start": 22.03,
+          "net_per_100_staked": 2.2,
+          "supply_share_change_pct": 24.77
+        }
+      ],
+      "log": [
+        {
+          "hunt": 1,
+          "hp_cal": 3000000,
+          "committed_cal": 3000000,
+          "hunters": 49,
+          "outcome": "Slain",
+          "pot_cal": 5030000,
+          "hoard_cal": 0,
+          "supply_cal": 100000000
+        },
+        {
+          "hunt": 2,
+          "hp_cal": 3750000,
+          "committed_cal": 3750000,
+          "hunters": 5,
+          "outcome": "Slain",
+          "pot_cal": 37500,
+          "hoard_cal": 0,
+          "supply_cal": 100000000
+        },
+        {
+          "hunt": 3,
+          "hp_cal": 4687500,
+          "committed_cal": 4687500,
+          "hunters": 20,
+          "outcome": "Slain",
+          "pot_cal": 46875,
+          "hoard_cal": 0,
+          "supply_cal": 100000000
+        },
+        {
+          "hunt": 4,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 34,
+          "outcome": "Slain",
+          "pot_cal": 58593,
+          "hoard_cal": 0,
+          "supply_cal": 100000000
+        },
+        {
+          "hunt": 5,
+          "hp_cal": 7324218,
+          "committed_cal": 4408969,
+          "hunters": 162,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 44089,
+          "supply_cal": 99867730
+        },
+        {
+          "hunt": 6,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 69,
+          "outcome": "Slain",
+          "pot_cal": 102683,
+          "hoard_cal": 0,
+          "supply_cal": 99867730
+        },
+        {
+          "hunt": 7,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 69,
+          "outcome": "Slain",
+          "pot_cal": 73242,
+          "hoard_cal": 0,
+          "supply_cal": 99867730
+        },
+        {
+          "hunt": 8,
+          "hp_cal": 9155273,
+          "committed_cal": 2475589,
+          "hunters": 90,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 24755,
+          "supply_cal": 99793463
+        },
+        {
+          "hunt": 9,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 62,
+          "outcome": "Slain",
+          "pot_cal": 97998,
+          "hoard_cal": 0,
+          "supply_cal": 99793463
+        },
+        {
+          "hunt": 10,
+          "hp_cal": 9155273,
+          "committed_cal": 3280864,
+          "hunters": 110,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 32808,
+          "supply_cal": 99695037
+        },
+        {
+          "hunt": 11,
+          "hp_cal": 7324218,
+          "committed_cal": 2290583,
+          "hunters": 84,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 55714,
+          "supply_cal": 99626319
+        },
+        {
+          "hunt": 12,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 22,
+          "outcome": "Slain",
+          "pot_cal": 114308,
+          "hoard_cal": 0,
+          "supply_cal": 99626319
+        },
+        {
+          "hunt": 13,
+          "hp_cal": 7324218,
+          "committed_cal": 2183100,
+          "hunters": 82,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 21831,
+          "supply_cal": 99560826
+        },
+        {
+          "hunt": 14,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 15,
+          "outcome": "Slain",
+          "pot_cal": 80424,
+          "hoard_cal": 0,
+          "supply_cal": 99560826
+        },
+        {
+          "hunt": 15,
+          "hp_cal": 7324218,
+          "committed_cal": 4704159,
+          "hunters": 178,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 47041,
+          "supply_cal": 99419701
+        },
+        {
+          "hunt": 16,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 4,
+          "outcome": "Slain",
+          "pot_cal": 105635,
+          "hoard_cal": 0,
+          "supply_cal": 99419701
+        },
+        {
+          "hunt": 17,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 54,
+          "outcome": "Slain",
+          "pot_cal": 73242,
+          "hoard_cal": 0,
+          "supply_cal": 99419701
+        },
+        {
+          "hunt": 18,
+          "hp_cal": 9155273,
+          "committed_cal": 2372760,
+          "hunters": 85,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 23727,
+          "supply_cal": 99348519
+        },
+        {
+          "hunt": 19,
+          "hp_cal": 7324218,
+          "committed_cal": 3172150,
+          "hunters": 117,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 55449,
+          "supply_cal": 99253354
+        },
+        {
+          "hunt": 20,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 84,
+          "outcome": "Slain",
+          "pot_cal": 114042,
+          "hoard_cal": 0,
+          "supply_cal": 99253354
+        },
+        {
+          "hunt": 21,
+          "hp_cal": 7324218,
+          "committed_cal": 2307891,
+          "hunters": 83,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 23078,
+          "supply_cal": 99184117
+        },
+        {
+          "hunt": 22,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 52,
+          "outcome": "Slain",
+          "pot_cal": 81672,
+          "hoard_cal": 0,
+          "supply_cal": 99184117
+        },
+        {
+          "hunt": 23,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 89,
+          "outcome": "Slain",
+          "pot_cal": 73242,
+          "hoard_cal": 0,
+          "supply_cal": 99184117
+        },
+        {
+          "hunt": 24,
+          "hp_cal": 9155273,
+          "committed_cal": 2811208,
+          "hunters": 102,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 28112,
+          "supply_cal": 99099781
+        },
+        {
+          "hunt": 25,
+          "hp_cal": 7324218,
+          "committed_cal": 2824861,
+          "hunters": 103,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 56360,
+          "supply_cal": 99015035
+        },
+        {
+          "hunt": 26,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 9,
+          "outcome": "Slain",
+          "pot_cal": 114954,
+          "hoard_cal": 0,
+          "supply_cal": 99015035
+        },
+        {
+          "hunt": 27,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 73,
+          "outcome": "Slain",
+          "pot_cal": 73242,
+          "hoard_cal": 0,
+          "supply_cal": 99015035
+        },
+        {
+          "hunt": 28,
+          "hp_cal": 9155273,
+          "committed_cal": 2612906,
+          "hunters": 102,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 26129,
+          "supply_cal": 98936648
+        },
+        {
+          "hunt": 29,
+          "hp_cal": 7324218,
+          "committed_cal": 3575601,
+          "hunters": 135,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 61885,
+          "supply_cal": 98829380
+        },
+        {
+          "hunt": 30,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 28,
+          "outcome": "Slain",
+          "pot_cal": 120478,
+          "hoard_cal": 0,
+          "supply_cal": 98829380
+        },
+        {
+          "hunt": 31,
+          "hp_cal": 7324218,
+          "committed_cal": 2156074,
+          "hunters": 84,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 21560,
+          "supply_cal": 98764698
+        },
+        {
+          "hunt": 32,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 23,
+          "outcome": "Slain",
+          "pot_cal": 80154,
+          "hoard_cal": 0,
+          "supply_cal": 98764698
+        },
+        {
+          "hunt": 33,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 60,
+          "outcome": "Slain",
+          "pot_cal": 73242,
+          "hoard_cal": 0,
+          "supply_cal": 98764698
+        },
+        {
+          "hunt": 34,
+          "hp_cal": 9155273,
+          "committed_cal": 3064511,
+          "hunters": 112,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 30645,
+          "supply_cal": 98672762
+        },
+        {
+          "hunt": 35,
+          "hp_cal": 7324218,
+          "committed_cal": 2251972,
+          "hunters": 91,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 53164,
+          "supply_cal": 98605203
+        },
+        {
+          "hunt": 36,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 59,
+          "outcome": "Slain",
+          "pot_cal": 111758,
+          "hoard_cal": 0,
+          "supply_cal": 98605203
+        },
+        {
+          "hunt": 37,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 71,
+          "outcome": "Slain",
+          "pot_cal": 73242,
+          "hoard_cal": 0,
+          "supply_cal": 98605203
+        },
+        {
+          "hunt": 38,
+          "hp_cal": 9155273,
+          "committed_cal": 2243601,
+          "hunters": 92,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 22436,
+          "supply_cal": 98537895
+        },
+        {
+          "hunt": 39,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 71,
+          "outcome": "Slain",
+          "pot_cal": 95678,
+          "hoard_cal": 0,
+          "supply_cal": 98537895
+        },
+        {
+          "hunt": 40,
+          "hp_cal": 9155273,
+          "committed_cal": 1976597,
+          "hunters": 83,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 19765,
+          "supply_cal": 98478597
+        },
+        {
+          "hunt": 41,
+          "hp_cal": 7324218,
+          "committed_cal": 1780303,
+          "hunters": 68,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 37569,
+          "supply_cal": 98425188
+        },
+        {
+          "hunt": 42,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 25,
+          "outcome": "Slain",
+          "pot_cal": 96162,
+          "hoard_cal": 0,
+          "supply_cal": 98425188
+        },
+        {
+          "hunt": 43,
+          "hp_cal": 7324218,
+          "committed_cal": 2303883,
+          "hunters": 90,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 23038,
+          "supply_cal": 98356072
+        },
+        {
+          "hunt": 44,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 43,
+          "outcome": "Slain",
+          "pot_cal": 81632,
+          "hoard_cal": 0,
+          "supply_cal": 98356072
+        },
+        {
+          "hunt": 45,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 74,
+          "outcome": "Slain",
+          "pot_cal": 73242,
+          "hoard_cal": 0,
+          "supply_cal": 98356072
+        },
+        {
+          "hunt": 46,
+          "hp_cal": 9155273,
+          "committed_cal": 2128763,
+          "hunters": 84,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 21287,
+          "supply_cal": 98292209
+        },
+        {
+          "hunt": 47,
+          "hp_cal": 7324218,
+          "committed_cal": 2268582,
+          "hunters": 89,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 43973,
+          "supply_cal": 98224151
+        },
+        {
+          "hunt": 48,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 24,
+          "outcome": "Slain",
+          "pot_cal": 102567,
+          "hoard_cal": 0,
+          "supply_cal": 98224151
+        },
+        {
+          "hunt": 49,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 46,
+          "outcome": "Slain",
+          "pot_cal": 73242,
+          "hoard_cal": 0,
+          "supply_cal": 98224151
+        },
+        {
+          "hunt": 50,
+          "hp_cal": 9155273,
+          "committed_cal": 2595589,
+          "hunters": 104,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 25955,
+          "supply_cal": 98146284
+        },
+        {
+          "hunt": 51,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 59,
+          "outcome": "Slain",
+          "pot_cal": 99198,
+          "hoard_cal": 0,
+          "supply_cal": 98146284
+        },
+        {
+          "hunt": 52,
+          "hp_cal": 9155273,
+          "committed_cal": 2599829,
+          "hunters": 101,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 25998,
+          "supply_cal": 98068289
+        },
+        {
+          "hunt": 53,
+          "hp_cal": 7324218,
+          "committed_cal": 1782994,
+          "hunters": 78,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 43828,
+          "supply_cal": 98014799
+        },
+        {
+          "hunt": 54,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 74,
+          "outcome": "Slain",
+          "pot_cal": 102421,
+          "hoard_cal": 0,
+          "supply_cal": 98014799
+        },
+        {
+          "hunt": 55,
+          "hp_cal": 7324218,
+          "committed_cal": 1992394,
+          "hunters": 87,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 19923,
+          "supply_cal": 97955027
+        },
+        {
+          "hunt": 56,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 64,
+          "outcome": "Slain",
+          "pot_cal": 78517,
+          "hoard_cal": 0,
+          "supply_cal": 97955027
+        },
+        {
+          "hunt": 57,
+          "hp_cal": 7324218,
+          "committed_cal": 2634987,
+          "hunters": 107,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 26349,
+          "supply_cal": 97875977
+        },
+        {
+          "hunt": 58,
+          "hp_cal": 5859375,
+          "committed_cal": 5859375,
+          "hunters": 2,
+          "outcome": "Slain",
+          "pot_cal": 84943,
+          "hoard_cal": 0,
+          "supply_cal": 97875977
+        },
+        {
+          "hunt": 59,
+          "hp_cal": 7324218,
+          "committed_cal": 7324218,
+          "hunters": 73,
+          "outcome": "Slain",
+          "pot_cal": 73242,
+          "hoard_cal": 0,
+          "supply_cal": 97875977
+        },
+        {
+          "hunt": 60,
+          "hp_cal": 9155273,
+          "committed_cal": 2469139,
+          "hunters": 98,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 24691,
+          "supply_cal": 97801903
+        }
+      ]
+    },
+    {
+      "rule": "B (early-commit weighting)",
+      "hunts": 60,
+      "kills": 32,
+      "kill_rate_pct": 53.33,
+      "supply_end_cal": 97524258,
+      "burned_cal": 2475741,
+      "strategies": [
+        {
+          "strategy": "early committer",
+          "hunters": 114,
+          "joins": 4387,
+          "net_cal": -122831.0,
+          "net_pct_of_start": -1.03,
+          "net_per_100_staked": -0.11,
+          "supply_share_change_pct": 1.48
+        },
+        {
+          "strategy": "threshold watcher",
+          "hunters": 114,
+          "joins": 3929,
+          "net_cal": 1108698.0,
+          "net_pct_of_start": 9.14,
+          "net_per_100_staked": 0.98,
+          "supply_share_change_pct": 11.91
+        },
+        {
+          "strategy": "quitter",
+          "hunters": 57,
+          "joins": 1159,
+          "net_cal": 154909.0,
+          "net_pct_of_start": 2.64,
+          "net_per_100_staked": 0.5,
+          "supply_share_change_pct": 5.24
+        },
+        {
+          "strategy": "late whale (wait-and-fill)",
+          "hunters": 7,
+          "joins": 18,
+          "net_cal": -105890.0,
+          "net_pct_of_start": -0.67,
+          "net_per_100_staked": -0.41,
+          "supply_share_change_pct": 1.85
+        },
+        {
+          "strategy": "solo whale",
+          "hunters": 8,
+          "joins": 11,
+          "net_cal": 1489374.0,
+          "net_pct_of_start": 9.3,
+          "net_per_100_staked": 4.25,
+          "supply_share_change_pct": 12.07
+        }
+      ],
+      "log": [
+        {
+          "hunt": 1,
+          "hp_cal": 3000000,
+          "committed_cal": 7395090,
+          "hunters": 225,
+          "outcome": "Slain",
+          "pot_cal": 5073950,
+          "hoard_cal": 0,
+          "supply_cal": 100000000
+        },
+        {
+          "hunt": 2,
+          "hp_cal": 3750000,
+          "committed_cal": 10141860,
+          "hunters": 228,
+          "outcome": "Slain",
+          "pot_cal": 101418,
+          "hoard_cal": 0,
+          "supply_cal": 100000000
+        },
+        {
+          "hunt": 3,
+          "hp_cal": 4687500,
+          "committed_cal": 6593835,
+          "hunters": 231,
+          "outcome": "Slain",
+          "pot_cal": 65938,
+          "hoard_cal": 0,
+          "supply_cal": 100000000
+        },
+        {
+          "hunt": 4,
+          "hp_cal": 5859375,
+          "committed_cal": 6348313,
+          "hunters": 221,
+          "outcome": "Slain",
+          "pot_cal": 63483,
+          "hoard_cal": 0,
+          "supply_cal": 100000000
+        },
+        {
+          "hunt": 5,
+          "hp_cal": 7324218,
+          "committed_cal": 7938993,
+          "hunters": 183,
+          "outcome": "Slain",
+          "pot_cal": 79389,
+          "hoard_cal": 0,
+          "supply_cal": 100000000
+        },
+        {
+          "hunt": 6,
+          "hp_cal": 9155273,
+          "committed_cal": 3147342,
+          "hunters": 110,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 31473,
+          "supply_cal": 99905579
+        },
+        {
+          "hunt": 7,
+          "hp_cal": 7324218,
+          "committed_cal": 3152257,
+          "hunters": 109,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 62995,
+          "supply_cal": 99811012
+        },
+        {
+          "hunt": 8,
+          "hp_cal": 5859375,
+          "committed_cal": 7288500,
+          "hunters": 191,
+          "outcome": "Slain",
+          "pot_cal": 135880,
+          "hoard_cal": 0,
+          "supply_cal": 99811012
+        },
+        {
+          "hunt": 9,
+          "hp_cal": 7324218,
+          "committed_cal": 2040222,
+          "hunters": 74,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 20402,
+          "supply_cal": 99749805
+        },
+        {
+          "hunt": 10,
+          "hp_cal": 5859375,
+          "committed_cal": 10238637,
+          "hunters": 218,
+          "outcome": "Slain",
+          "pot_cal": 122788,
+          "hoard_cal": 0,
+          "supply_cal": 99749805
+        },
+        {
+          "hunt": 11,
+          "hp_cal": 7324218,
+          "committed_cal": 4511843,
+          "hunters": 159,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 45118,
+          "supply_cal": 99614450
+        },
+        {
+          "hunt": 12,
+          "hp_cal": 5859375,
+          "committed_cal": 6952564,
+          "hunters": 199,
+          "outcome": "Slain",
+          "pot_cal": 114644,
+          "hoard_cal": 0,
+          "supply_cal": 99614450
+        },
+        {
+          "hunt": 13,
+          "hp_cal": 7324218,
+          "committed_cal": 2481636,
+          "hunters": 88,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 24816,
+          "supply_cal": 99540000
+        },
+        {
+          "hunt": 14,
+          "hp_cal": 5859375,
+          "committed_cal": 7211010,
+          "hunters": 199,
+          "outcome": "Slain",
+          "pot_cal": 96926,
+          "hoard_cal": 0,
+          "supply_cal": 99540000
+        },
+        {
+          "hunt": 15,
+          "hp_cal": 7324218,
+          "committed_cal": 8157345,
+          "hunters": 210,
+          "outcome": "Slain",
+          "pot_cal": 81573,
+          "hoard_cal": 0,
+          "supply_cal": 99540000
+        },
+        {
+          "hunt": 16,
+          "hp_cal": 9155273,
+          "committed_cal": 2221157,
+          "hunters": 89,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 22211,
+          "supply_cal": 99473366
+        },
+        {
+          "hunt": 17,
+          "hp_cal": 7324218,
+          "committed_cal": 3189420,
+          "hunters": 111,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 54105,
+          "supply_cal": 99377683
+        },
+        {
+          "hunt": 18,
+          "hp_cal": 5859375,
+          "committed_cal": 7179280,
+          "hunters": 164,
+          "outcome": "Slain",
+          "pot_cal": 125898,
+          "hoard_cal": 0,
+          "supply_cal": 99377683
+        },
+        {
+          "hunt": 19,
+          "hp_cal": 7324218,
+          "committed_cal": 2194293,
+          "hunters": 78,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 21942,
+          "supply_cal": 99311854
+        },
+        {
+          "hunt": 20,
+          "hp_cal": 5859375,
+          "committed_cal": 9334404,
+          "hunters": 214,
+          "outcome": "Slain",
+          "pot_cal": 115286,
+          "hoard_cal": 0,
+          "supply_cal": 99311854
+        },
+        {
+          "hunt": 21,
+          "hp_cal": 7324218,
+          "committed_cal": 4235526,
+          "hunters": 149,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 42355,
+          "supply_cal": 99184788
+        },
+        {
+          "hunt": 22,
+          "hp_cal": 5859375,
+          "committed_cal": 6398871,
+          "hunters": 203,
+          "outcome": "Slain",
+          "pot_cal": 106343,
+          "hoard_cal": 0,
+          "supply_cal": 99184788
+        },
+        {
+          "hunt": 23,
+          "hp_cal": 7324218,
+          "committed_cal": 3613550,
+          "hunters": 127,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 36135,
+          "supply_cal": 99076382
+        },
+        {
+          "hunt": 24,
+          "hp_cal": 5859375,
+          "committed_cal": 6814103,
+          "hunters": 145,
+          "outcome": "Slain",
+          "pot_cal": 104276,
+          "hoard_cal": 0,
+          "supply_cal": 99076382
+        },
+        {
+          "hunt": 25,
+          "hp_cal": 7324218,
+          "committed_cal": 3835755,
+          "hunters": 139,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 38357,
+          "supply_cal": 98961309
+        },
+        {
+          "hunt": 26,
+          "hp_cal": 5859375,
+          "committed_cal": 6240535,
+          "hunters": 138,
+          "outcome": "Slain",
+          "pot_cal": 100762,
+          "hoard_cal": 0,
+          "supply_cal": 98961309
+        },
+        {
+          "hunt": 27,
+          "hp_cal": 7324218,
+          "committed_cal": 3682574,
+          "hunters": 130,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 36825,
+          "supply_cal": 98850832
+        },
+        {
+          "hunt": 28,
+          "hp_cal": 5859375,
+          "committed_cal": 9445498,
+          "hunters": 201,
+          "outcome": "Slain",
+          "pot_cal": 131280,
+          "hoard_cal": 0,
+          "supply_cal": 98850832
+        },
+        {
+          "hunt": 29,
+          "hp_cal": 7324218,
+          "committed_cal": 7334842,
+          "hunters": 179,
+          "outcome": "Slain",
+          "pot_cal": 73348,
+          "hoard_cal": 0,
+          "supply_cal": 98850832
+        },
+        {
+          "hunt": 30,
+          "hp_cal": 9155273,
+          "committed_cal": 2511815,
+          "hunters": 92,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 25118,
+          "supply_cal": 98775478
+        },
+        {
+          "hunt": 31,
+          "hp_cal": 7324218,
+          "committed_cal": 3456316,
+          "hunters": 125,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 59681,
+          "supply_cal": 98671788
+        },
+        {
+          "hunt": 32,
+          "hp_cal": 5859375,
+          "committed_cal": 6116813,
+          "hunters": 211,
+          "outcome": "Slain",
+          "pot_cal": 120849,
+          "hoard_cal": 0,
+          "supply_cal": 98671788
+        },
+        {
+          "hunt": 33,
+          "hp_cal": 7324218,
+          "committed_cal": 2041283,
+          "hunters": 80,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 20412,
+          "supply_cal": 98610550
+        },
+        {
+          "hunt": 34,
+          "hp_cal": 5859375,
+          "committed_cal": 6188660,
+          "hunters": 208,
+          "outcome": "Slain",
+          "pot_cal": 82299,
+          "hoard_cal": 0,
+          "supply_cal": 98610550
+        },
+        {
+          "hunt": 35,
+          "hp_cal": 7324218,
+          "committed_cal": 3407609,
+          "hunters": 127,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 34076,
+          "supply_cal": 98508321
+        },
+        {
+          "hunt": 36,
+          "hp_cal": 5859375,
+          "committed_cal": 2470922,
+          "hunters": 93,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 58785,
+          "supply_cal": 98434194
+        },
+        {
+          "hunt": 37,
+          "hp_cal": 4687500,
+          "committed_cal": 8096721,
+          "hunters": 192,
+          "outcome": "Slain",
+          "pot_cal": 139752,
+          "hoard_cal": 0,
+          "supply_cal": 98434194
+        },
+        {
+          "hunt": 38,
+          "hp_cal": 5859375,
+          "committed_cal": 2271440,
+          "hunters": 84,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 22714,
+          "supply_cal": 98366050
+        },
+        {
+          "hunt": 39,
+          "hp_cal": 4687500,
+          "committed_cal": 8702391,
+          "hunters": 216,
+          "outcome": "Slain",
+          "pot_cal": 109738,
+          "hoard_cal": 0,
+          "supply_cal": 98366050
+        },
+        {
+          "hunt": 40,
+          "hp_cal": 5859375,
+          "committed_cal": 6610859,
+          "hunters": 212,
+          "outcome": "Slain",
+          "pot_cal": 66108,
+          "hoard_cal": 0,
+          "supply_cal": 98366050
+        },
+        {
+          "hunt": 41,
+          "hp_cal": 7324218,
+          "committed_cal": 2521212,
+          "hunters": 95,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 25212,
+          "supply_cal": 98290414
+        },
+        {
+          "hunt": 42,
+          "hp_cal": 5859375,
+          "committed_cal": 3155812,
+          "hunters": 123,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 56770,
+          "supply_cal": 98195740
+        },
+        {
+          "hunt": 43,
+          "hp_cal": 4687500,
+          "committed_cal": 5206509,
+          "hunters": 190,
+          "outcome": "Slain",
+          "pot_cal": 108835,
+          "hoard_cal": 0,
+          "supply_cal": 98195740
+        },
+        {
+          "hunt": 44,
+          "hp_cal": 5859375,
+          "committed_cal": 2817677,
+          "hunters": 103,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 28176,
+          "supply_cal": 98111209
+        },
+        {
+          "hunt": 45,
+          "hp_cal": 4687500,
+          "committed_cal": 8558089,
+          "hunters": 206,
+          "outcome": "Slain",
+          "pot_cal": 113757,
+          "hoard_cal": 0,
+          "supply_cal": 98111209
+        },
+        {
+          "hunt": 46,
+          "hp_cal": 5859375,
+          "committed_cal": 6837966,
+          "hunters": 206,
+          "outcome": "Slain",
+          "pot_cal": 68379,
+          "hoard_cal": 0,
+          "supply_cal": 98111209
+        },
+        {
+          "hunt": 47,
+          "hp_cal": 7324218,
+          "committed_cal": 2758028,
+          "hunters": 106,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 27580,
+          "supply_cal": 98028468
+        },
+        {
+          "hunt": 48,
+          "hp_cal": 5859375,
+          "committed_cal": 6064460,
+          "hunters": 206,
+          "outcome": "Slain",
+          "pot_cal": 88224,
+          "hoard_cal": 0,
+          "supply_cal": 98028468
+        },
+        {
+          "hunt": 49,
+          "hp_cal": 7324218,
+          "committed_cal": 2797688,
+          "hunters": 104,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 27976,
+          "supply_cal": 97944538
+        },
+        {
+          "hunt": 50,
+          "hp_cal": 5859375,
+          "committed_cal": 3168304,
+          "hunters": 122,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 59659,
+          "supply_cal": 97849489
+        },
+        {
+          "hunt": 51,
+          "hp_cal": 4687500,
+          "committed_cal": 8770617,
+          "hunters": 207,
+          "outcome": "Slain",
+          "pot_cal": 147366,
+          "hoard_cal": 0,
+          "supply_cal": 97849489
+        },
+        {
+          "hunt": 52,
+          "hp_cal": 5859375,
+          "committed_cal": 6049720,
+          "hunters": 218,
+          "outcome": "Slain",
+          "pot_cal": 60497,
+          "hoard_cal": 0,
+          "supply_cal": 97849489
+        },
+        {
+          "hunt": 53,
+          "hp_cal": 7324218,
+          "committed_cal": 3410885,
+          "hunters": 133,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 34108,
+          "supply_cal": 97747162
+        },
+        {
+          "hunt": 54,
+          "hp_cal": 5859375,
+          "committed_cal": 9399626,
+          "hunters": 200,
+          "outcome": "Slain",
+          "pot_cal": 128105,
+          "hoard_cal": 0,
+          "supply_cal": 97747162
+        },
+        {
+          "hunt": 55,
+          "hp_cal": 7324218,
+          "committed_cal": 1889619,
+          "hunters": 81,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 18896,
+          "supply_cal": 97690474
+        },
+        {
+          "hunt": 56,
+          "hp_cal": 5859375,
+          "committed_cal": 2289949,
+          "hunters": 93,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 41795,
+          "supply_cal": 97621775
+        },
+        {
+          "hunt": 57,
+          "hp_cal": 4687500,
+          "committed_cal": 8159170,
+          "hunters": 215,
+          "outcome": "Slain",
+          "pot_cal": 123387,
+          "hoard_cal": 0,
+          "supply_cal": 97621775
+        },
+        {
+          "hunt": 58,
+          "hp_cal": 5859375,
+          "committed_cal": 6243738,
+          "hunters": 210,
+          "outcome": "Slain",
+          "pot_cal": 62437,
+          "hoard_cal": 0,
+          "supply_cal": 97621775
+        },
+        {
+          "hunt": 59,
+          "hp_cal": 7324218,
+          "committed_cal": 3250561,
+          "hunters": 126,
+          "outcome": "Escaped",
+          "pot_cal": 0,
+          "hoard_cal": 32505,
+          "supply_cal": 97524258
+        },
+        {
+          "hunt": 60,
+          "hp_cal": 5859375,
+          "committed_cal": 6819741,
+          "hunters": 208,
+          "outcome": "Slain",
+          "pot_cal": 100703,
+          "hoard_cal": 0,
+          "supply_cal": 97524258
+        }
+      ]
+    }
+  ]
+}
