@@ -1,7 +1,8 @@
 // npm run sim-converge: repeated simulations where the strategy mix follows the money (replicator rule).
 // Generation g plays `--hunts` hunts under rule B (the launch rule) with seed base+g; the next mix gives each
 // of early / watcher / quitter / first mover a share proportional to share x (1 + net % of start / 100),
-// floored at 0. Whales stay at 5% of hunters with their fixed strategies. Writes sim/converge/summary.json.
+// floored at 0. Whales stay at 5% of hunters with their fixed strategies. Writes sim/converge/summary.json after
+// each generation.
 // Options: --gens 10 --hunts 20 --hunters 300 --seed 2000 --mix 250,250,250,250 (per mille).
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -13,6 +14,10 @@ const base = Number(opt("--seed", 2000));
 const names = ["early committer", "threshold watcher", "quitter", "first mover (round 1, lands first)"];
 let mix = opt("--mix", "250,250,250,250").split(",").map(Number);
 const out = [];
+// summary.json is rewritten after every generation, so a run cut short still leaves the generations it finished.
+const summary = (done) => writeFileSync("sim/converge/summary.json", JSON.stringify({ rule: "B", hunts_per_generation: Number(hunts),
+  hunters: Number(hunters), update: "share x max(0, 1 + net % of start / 100), renormalised to 1000", strategies: names,
+  complete: done, generations: out, [done ? "final_mix_per_mille" : "next_mix_per_mille"]: mix }, null, 2) + "\n");
 mkdirSync("sim/converge", { recursive: true });
 for (let g = 0; g < gens; g++) {
   const file = `converge/gen-${g}.json`;
@@ -31,7 +36,6 @@ for (let g = 0; g < gens; g++) {
   let next = fit.map((f) => Math.round((1000 * f) / sum));
   next[next.indexOf(Math.max(...next))] += 1000 - next.reduce((a, b) => a + b, 0);
   mix = next;
+  summary(g === gens - 1);
 }
-writeFileSync("sim/converge/summary.json", JSON.stringify({ rule: "B", hunts_per_generation: Number(hunts), hunters: Number(hunters),
-  update: "share x max(0, 1 + net % of start / 100), renormalised to 1000", strategies: names, generations: out, final_mix_per_mille: mix }, null, 2) + "\n");
 console.log(`final mix (early, watcher, quitter, first mover, per mille): ${mix.join(",")}`);

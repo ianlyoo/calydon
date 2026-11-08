@@ -262,11 +262,11 @@ async fn launch_values() -> Result<()> {
     let cfg = launch_config(1_000 * C, 400, 100);
     let (cal, _) = deploy(&worker, &root, "cal", holder.id(), supply, 1_000 * C, 0, cfg.clone()).await?;
     ensure!(view(&cal, "config", json!({})).await? == cfg);
-    for h in [&alice, &bob, &carol] {
+    for h in [&alice, &bob, &carol, &dave] {
         ensure!(register(&cal, h).await?.is_success());
         ensure!(send(&cal, &holder, h.id(), 10_000 * C).await?.is_success());
     }
-    held(&mut n, "launch values are fixed at init and readable: rule B, tribute 1%, fill fee up to +10%, burn 10%, HP x1.1 / x0.7",
+    held(&mut n, "launch values are fixed at init and readable: rule B, tribute 1% (flat in step 1), fill fee up to +10% from step 2, burn 10%, HP x1.1 / x0.7, 20 starters per hunt",
         &format!("config() == {cfg}"));
 
     // Edge cases at the boundary: under the minimum stake, no entry deposit, more than the balance. None changes state.
@@ -280,43 +280,51 @@ async fn launch_values() -> Result<()> {
         &format!("commit(1 CAL - 1 yocto): panic {}; new entry with 1 yocto attached: panic {}; 10000 of 10000 (fee on top): panic {}; alice still 10000 CAL, locked 0",
             panic_of(&zero), panic_of(&no_yocto), panic_of(&too_much)));
 
-    // Hunt 0, HP 1000. Alice commits 600 into an empty bar; bob 500 later, 400 to fill it and 100 past it.
+    // Hunt 0, HP 1000. Step 1: alice 600 into an empty bar, then dave 100 into a bar 60% full: both pay
+    // the flat 1%. Step 3: bob 500, 300 to fill the bar and 200 past it, pays tribute + fill fee.
     let h0 = view(&cal, "current_hunt", json!({})).await?;
     let deadline = h0["deadline"].as_u64().unwrap();
     ensure!(returned(&commit(&cal, &alice, 600 * C).await?)? == 600 * C);
     let fee_a = 10_000 * C - 600 * C - balance(&cal, alice.id()).await?;
+    ensure!(returned(&commit(&cal, &dave, 100 * C).await?)? == 100 * C);
+    let fee_d = 10_000 * C - 100 * C - balance(&cal, dave.id()).await?;
+    ensure!(height(&worker).await? < deadline - 300, "step 1 commits landed in step 1");
     pass_deadline(&worker, deadline - 150).await?;
     ensure!(returned(&commit(&cal, &bob, 500 * C).await?)? == 500 * C, "rule B takes stake past HP");
     let fee_b = 10_000 * C - 500 * C - balance(&cal, bob.id()).await?;
-    ensure!(fee_a == 24 * C && fee_a == calydon::fill_fee(0, 600 * C, 1_000 * C, 100, 1_000), "alice fee {fee_a}");
-    ensure!(fee_b == 47 * C && fee_b == calydon::fill_fee(600 * C, 500 * C, 1_000 * C, 100, 1_000), "bob fee {fee_b}");
+    ensure!(fee_a == 6 * C && fee_a == calydon::fill_fee(0, 600 * C, 1_000 * C, 100, 0), "alice fee {fee_a}");
+    ensure!(fee_d == C && fee_d == calydon::fill_fee(600 * C, 100 * C, 1_000 * C, 100, 0), "dave fee {fee_d}");
+    ensure!(fee_b == calydon::fill_fee(700 * C, 500 * C, 1_000 * C, 100, 1_000) && fee_b == 50 * C + C / 2, "bob fee {fee_b}");
     let entry = |who: &near_workspaces::Account| view(&cal, "entry", json!({"hunt": 0, "account_id": who.id()}));
-    let (wa, wb) = (num(&entry(&alice).await?["weight"])?, num(&entry(&bob).await?["weight"])?);
-    ensure!(wa == 4 * 600 * C && wb == 2 * 500 * C, "weights {wa} {wb}");
+    let (wa, wb, wd) = (num(&entry(&alice).await?["weight"])?, num(&entry(&bob).await?["weight"])?, num(&entry(&dave).await?["weight"])?);
+    ensure!(wa == 4 * 600 * C && wd == 4 * 100 * C && wb == 2 * 500 * C, "weights {wa} {wd} {wb}");
     let t = conservation(&cal, &ids, launched).await?;
-    ensure!(num(&t["hoard"])? == 1_071 * C);
-    held(&mut n, "the entry fee rises with the bar's fill and goes into the hoard; rule B weights a commit by the steps left",
-        &format!("alice 600 into an empty bar: fee 24 CAL (1% + 10% x 0.3 average fill); bob 500 at 600/1000: fee 47 CAL (400 at 1% + 10% x 0.8, 100 past HP at 11%); weights 600x4, 500x2; hoard 1000 + 71 = 1071 CAL"));
+    let pot = 1_000 * C + fee_a + fee_d + fee_b;
+    ensure!(num(&t["hoard"])? == pot);
+    held(&mut n, "step 1 has one flat fee, whatever order commits land in; from step 2 the entry fee rises with the bar's fill; fees go into the hoard; rule B weights a commit by the steps left",
+        &format!("step 1: alice 600 into an empty bar: fee 6 CAL (1%); dave 100 into a bar 60% full: fee 1 CAL (1%); step 3: bob 500 at 700/1000: fee 50.5 CAL (300 at 1% + 10% x 0.85, 200 past HP at 11%); weights 600x4, 100x4, 500x2; hoard 1000 + 57.5 = {} CAL", pot as f64 / C as f64));
 
     pass_deadline(&worker, deadline).await?;
     ensure!(resolve(&cal, &dave, 0).await?.json::<String>()? == "Slain");
     let next = view(&cal, "current_hunt", json!({})).await?;
     ensure!(num(&next["hp"])? == 1_100 * C);
-    let pot = 1_071 * C;
+    let total = wa + wb + wd;
     let pa = returned(&claim(&cal, &alice, 0).await?)?;
+    let pd = returned(&claim(&cal, &dave, 0).await?)?;
     let pb = returned(&claim(&cal, &bob, 0).await?)?;
     let twice = claim(&cal, &bob, 0).await?;
-    ensure!(pa == 600 * C + calydon::share(pot, wa, wa + wb) && pb == 500 * C + calydon::share(pot, wb, wa + wb));
+    ensure!(pa == 600 * C + calydon::share(pot, wa, total) && pb == 500 * C + calydon::share(pot, wb, total)
+        && pd == 100 * C + calydon::share(pot, wd, total));
     let t = conservation(&cal, &ids, launched).await?;
     let dust = num(&t["hoard"])?;
-    ensure!(dust == pot - (pa - 600 * C) - (pb - 500 * C) && num(&t["unclaimed"])? == 0);
-    held(&mut n, "slain under the launch values: shares of the 1071 CAL pot by weight, rounded down, once each; next HP x1.1",
-        &format!("alice {} = 600 + {:.4} CAL; bob {} = 500 + {:.4} CAL; second claim: panic {}; dust {dust} yocto back in the hoard; hunt 1 HP 1100 CAL",
-            pa, (pa - 600 * C) as f64 / C as f64, pb, (pb - 500 * C) as f64 / C as f64, panic_of(&twice)));
+    ensure!(dust == pot - (pa - 600 * C) - (pb - 500 * C) - (pd - 100 * C) && num(&t["unclaimed"])? == 0);
+    held(&mut n, "slain under the launch values: shares of the pot by weight, rounded down, once each; next HP x1.1",
+        &format!("pot {:.1} CAL; alice {} = 600 + {:.4} CAL; dave 100 + {:.4}; bob 500 + {:.4} CAL; second claim: panic {}; dust {dust} yocto back in the hoard; hunt 1 HP 1100 CAL",
+            pot as f64 / C as f64, pa, (pa - 600 * C) as f64 / C as f64, (pd - 100 * C) as f64 / C as f64, (pb - 500 * C) as f64 / C as f64, panic_of(&twice)));
 
     // Hunt 1, HP 1100: carol alone commits 300 -> escaped. Her fee stays in the hoard; 10% of the stake burns.
     ensure!(returned(&commit(&cal, &carol, 300 * C).await?)? == 300 * C);
-    let fee_c = calydon::fill_fee(0, 300 * C, 1_100 * C, 100, 1_000);
+    let fee_c = calydon::fill_fee(0, 300 * C, 1_100 * C, 100, 0); // step 1: flat 1%
     ensure!(balance(&cal, carol.id()).await? == 10_000 * C - 300 * C - fee_c);
     let supply_before = num(&view(&cal, "totals", json!({})).await?["supply"])?;
     pass_deadline(&worker, next["deadline"].as_u64().unwrap()).await?;
@@ -341,6 +349,9 @@ async fn launch_values() -> Result<()> {
             ensure!(register(&cal, h).await?.is_success());
             ensure!(send(&cal, &holder, h.id(), 10_000).await?.is_success());
         }
+        // In step 2, where the fill fee applies.
+        let d0 = view(&cal, "current_hunt", json!({})).await?["deadline"].as_u64().unwrap();
+        pass_deadline(&worker, d0 - 300).await?;
         ensure!(returned(&commit(&cal, &carol, 400).await?)? == 400);
         for h in &mine {
             let part = 600 / mine.len() as u128;
@@ -357,11 +368,11 @@ async fn launch_values() -> Result<()> {
         nets.push(net);
     }
     ensure!(nets[1] <= nets[0], "split {} > whole {}", nets[1], nets[0]);
-    held(&mut n, "I3 on chain with the fill fee: 600 from one account vs 300 + 300 from two accounts does not pay more",
+    held(&mut n, "I3 on chain with the fill fee (step 2): 600 from one account vs 300 + 300 from two accounts does not pay more",
         &format!("one account: net {:+} yocto; two accounts: net {:+} yocto (fill fees add up the same and round up; shares round down)", nets[0], nets[1]));
     held(&mut n, "I1 conservation held after every step under the launch values",
         &format!("final supply {} = launched {launched} - burned {}", num(&t["supply"])?, num(&t["burned"])?));
-    println!("Calydon verify (launch values: R2 fee, rule B, HP x1.1/x0.7): {n} claims held, 0 broken.");
+    println!("Calydon verify (launch values: flat step 1, fill fee from step 2, rule B, HP x1.1/x0.7): {n} claims held, 0 broken.");
     Ok(())
 }
 
@@ -372,7 +383,7 @@ async fn free_near(cal: &near_workspaces::Contract) -> Result<i128> {
 }
 
 #[tokio::test]
-async fn v1_1_storage_starter_sweep() -> Result<()> {
+async fn v1_2_storage_starter_transfers() -> Result<()> {
     let worker = near_workspaces::sandbox().await?;
     let root = worker.root_account()?;
     let big = NearToken::from_near(20);
@@ -386,10 +397,13 @@ async fn v1_1_storage_starter_sweep() -> Result<()> {
     let ids = [holder.id(), alice.id(), bob.id(), carol.id(), dave.id()];
     let mut n = 0;
 
-    // Launch values with HP 30 CAL; the holder gets 10,000 CAL, the hoard 1,000, the starter bucket 2,500.
+    // Launch values with HP 30 CAL and 2 starters per hunt; the holder gets 10,000 CAL, the hoard
+    // 1,000, the starter bucket 2,500.
     let (supply, hoard, bucket) = (10_000 * C, 1_000 * C, 2_500 * C);
     let launched = supply + hoard + bucket;
-    let (cal, _) = deploy(&worker, &root, "cal", holder.id(), supply, hoard, bucket, launch_config(30 * C, 200, 50)).await?;
+    let mut cfg = launch_config(30 * C, 200, 50);
+    cfg["starters_per_hunt"] = json!(2);
+    let (cal, _) = deploy(&worker, &root, "cal", holder.id(), supply, hoard, bucket, cfg).await?;
 
     // Starter: registered accounts only, once each, the record deposit attached, until the bucket is empty.
     let unregistered = starter(&cal, &dave).await?;
@@ -397,21 +411,18 @@ async fn v1_1_storage_starter_sweep() -> Result<()> {
         ensure!(register(&cal, h).await?.is_success());
     }
     let no_deposit = call(&cal, &alice, "starter", json!({}), NearToken::from_yoctonear(0)).await?;
-    let got: Vec<u128> = vec![
-        returned(&starter(&cal, &alice).await?)?,
-        returned(&starter(&cal, &bob).await?)?,
-        returned(&starter(&cal, &carol).await?)?,
-    ];
+    let got: Vec<u128> = vec![returned(&starter(&cal, &alice).await?)?, returned(&starter(&cal, &bob).await?)?];
+    let capped = starter(&cal, &carol).await?;
     let again = starter(&cal, &alice).await?;
-    let empty = starter(&cal, &dave).await?;
-    ensure!(got == [1_000 * C, 1_000 * C, 500 * C], "starters {got:?}");
+    ensure!(got == [1_000 * C, 1_000 * C], "starters {got:?}");
     ensure!(view(&cal, "starter_taken", json!({"account_id": alice.id()})).await? == true);
-    ensure!(view(&cal, "starter_taken", json!({"account_id": dave.id()})).await? == false);
+    ensure!(view(&cal, "starter_taken", json!({"account_id": carol.id()})).await? == false);
+    ensure!(view(&cal, "current_hunt", json!({})).await?["starters"] == 2);
     let t = conservation(&cal, &ids, launched).await?;
-    ensure!(num(&t["starter_left"])? == 0);
-    held(&mut n, "starter(): a registered account takes 1,000 CAL once from the starter bucket; the last one gets what is left, then it is empty",
-        &format!("unregistered: panic {}; no deposit: panic {}; alice, bob, carol got 1000, 1000, 500 CAL; alice again: panic {}; dave: panic {}",
-            panic_of(&unregistered), panic_of(&no_deposit), panic_of(&again), panic_of(&empty)));
+    ensure!(num(&t["starter_left"])? == 500 * C);
+    held(&mut n, "starter(): a registered account takes 1,000 CAL once from the starter bucket, at most starters_per_hunt (here 2) per hunt",
+        &format!("unregistered: panic {}; no deposit: panic {}; alice, bob got 1000, 1000 CAL; carol, third in hunt 0: panic {}; alice again: panic {}; hunt 0 starters = 2; bucket left 500 CAL",
+            panic_of(&unregistered), panic_of(&no_deposit), panic_of(&capped), panic_of(&again)));
 
     // Storage: a commit that creates an entry brings ENTRY_DEPOSIT; the contract's free NEAR never falls.
     let free0 = free_near(&cal).await?;
@@ -448,25 +459,38 @@ async fn v1_1_storage_starter_sweep() -> Result<()> {
     held(&mut n, "the halt scenario: storage growth that the attached NEAR does not cover is refused, so commits cannot spend the contract's own NEAR",
         &format!("instance with entry_deposit = 1 yocto: first commit panics {}; no entry stored; contract free NEAR not lower", panic_of(&uncovered)));
 
-    // Donation: a plain ft_transfer to the contract is held outside the parts until resolve sweeps it.
+    // Transfers to the contract itself are refused. The v1.1 race (tests/repro_v11.rs): ft_transfer_call
+    // to the contract, and a resolve one block later, before the transfer's refund. Here the transfer
+    // is refused in its first receipt, resolve sees held == parts, and the next resolve works.
     let h0 = view(&cal, "current_hunt", json!({})).await?;
     ensure!(h0["first_spear"] == json!(alice.id()), "first spear {}", h0["first_spear"]);
-    ensure!(send(&cal, &holder, cal.id(), 77 * C).await?.is_success());
-    let t = view(&cal, "totals", json!({})).await?;
-    let surplus = num(&t["held"])? - parts(&t)?;
-    ensure!(surplus == 77 * C, "surplus {surplus}");
-    let hoard_before = num(&t["hoard"])?;
+    let plain = send(&cal, &holder, cal.id(), 77 * C).await?;
     pass_deadline(&worker, h0["deadline"].as_u64().unwrap()).await?;
     let no_record = call(&cal, &dave, "resolve", json!({"hunt": 0}), NearToken::from_yoctonear(0)).await?;
-    let r = resolve(&cal, &dave, 0).await?;
+    let hoard_before = num(&view(&cal, "totals", json!({})).await?["hoard"])?;
+    let t1 = holder.call(cal.id(), "ft_transfer_call")
+        .args_json(json!({"receiver_id": cal.id(), "amount": (500 * C).to_string(), "msg": ""}))
+        .deposit(ONE).gas(near_workspaces::types::Gas::from_tgas(100)).transact_async().await?;
+    let start = height(&worker).await?;
+    while height(&worker).await? < start + 1 {
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    let t2 = dave.call(cal.id(), "resolve").args_json(json!({"hunt": 0})).deposit(RECORD_DEPOSIT).transact_async().await?;
+    let (r1, r) = (t1.await?, t2.await?);
     ensure!(r.clone().json::<String>()? == "Slain");
-    let sweep: Vec<_> = events(&r).into_iter().filter(|e| e["event"] == "sweep").collect();
-    ensure!(sweep.len() == 1 && num(&sweep[0]["data"][0]["amount"])? == 77 * C, "sweep events {sweep:?}");
     let pot = num(&view(&cal, "hunt", json!({"id": 0})).await?["pot"])?;
-    ensure!(pot == hoard_before + 77 * C, "pot {pot}");
+    ensure!(pot == hoard_before, "pot {pot} != hoard {hoard_before}");
     let t = conservation(&cal, &ids, launched).await?;
-    held(&mut n, "a plain transfer to the contract (77 CAL) shows as held - parts; resolve sweeps it into the hoard, so the identity holds again and it is paid out with the pot",
-        &format!("before resolve: held - (hoard + locked + unclaimed + starter_left) = {} CAL; resolve without the record deposit: panic {}; resolve emits sweep 77 CAL; pot {} = hoard {} + 77 CAL; after: held == parts", surplus / C, panic_of(&no_record), pot, hoard_before));
+    let h1 = view(&cal, "current_hunt", json!({})).await?;
+    pass_deadline(&worker, h1["deadline"].as_u64().unwrap()).await?;
+    ensure!(resolve(&cal, &dave, 1).await?.json::<String>()? == "Escaped", "the next resolve works");
+    let carol_starter = returned(&starter(&cal, &carol).await?)?;
+    let empty = starter(&cal, &dave).await?;
+    ensure!(carol_starter == 500 * C);
+    conservation(&cal, &ids, launched).await?;
+    held(&mut n, "transfers to the contract itself are refused, so held == hoard + locked + unclaimed + starter bucket always; the v1.1 race (ft_transfer_call to the contract, resolve before its refund) cannot happen; the starter count starts again in a new hunt",
+        &format!("ft_transfer 77 CAL to the contract: panic {}; ft_transfer_call 500 CAL to the contract: panic {}; resolve(0) one block later: Slain, pot = hoard {} (nothing swept), held == parts; resolve(1): Escaped; resolve without the record deposit: panic {}; in hunt 2 carol got the last 500 CAL; dave: panic {}",
+            panic_of(&plain), panic_of(&r1), pot, panic_of(&no_record), panic_of(&empty)));
 
     // Claims send the entry deposit back; the contract's free NEAR is back where it started or higher.
     let before = alice.view_account().await?.balance.as_yoctonear();
@@ -482,6 +506,6 @@ async fn v1_1_storage_starter_sweep() -> Result<()> {
         &format!("alice claimed {:.4} CAL and her NEAR rose by {:.6} (5 mNEAR minus gas); first_spear = {}; contract free NEAR {} -> {} yocto",
             pa as f64 / C as f64, gained as f64 / 1e24, h0["first_spear"], free0, free2));
     let _ = t;
-    println!("Calydon verify (v1.1 storage, starter, sweep): {n} claims held, 0 broken.");
+    println!("Calydon verify (storage, starter, transfers): {n} claims held, 0 broken.");
     Ok(())
 }

@@ -10,7 +10,7 @@
 //!   claim <hunt> --as <name>     take your settlement for a resolved hunt
 //!
 //! The instance is `--contract <id>`, else the last `launch` (.credentials/testnet/play.json), else
-//! the recorded v1.1 instance in testnet/run.json (any testnet account can take a starter and play).
+//! the recorded v1.2 instance in testnet/run.json (any testnet account can take a starter and play).
 //! `<name>` is alice, bob, holder or a full account id with a key file in .credentials/testnet/.
 #[path = "../tests/common/mod.rs"]
 mod common;
@@ -83,8 +83,15 @@ async fn status(cal: &Contract, worker: &Worker<Testnet>) -> Result<()> {
         cfg["tribute_bps"], cfg["fill_fee_bps"], cfg["burn_bps"], cfg["hp_up_bps"].as_f64().unwrap_or(0.0) / 1e4, cfg["hp_down_bps"].as_f64().unwrap_or(0.0) / 1e4);
     println!("hunt {}: [{}{}] {} / {} CAL committed by {} hunter(s)", h["id"], "#".repeat(filled / 5), ".".repeat(20 - filled / 5), show(committed), show(hp), h["hunters"]);
     if now < deadline {
-        let fee = fill_fee(committed, C, hp, cfg["tribute_bps"].as_u64().unwrap_or(0) as u32, cfg["fill_fee_bps"].as_u64().unwrap_or(0) as u32);
-        println!("  open: {} blocks left (deadline {deadline}); the next 1 CAL committed pays {} CAL fee (a larger stake pays the fee integrated over the fill it covers)", deadline - now, show(fee));
+        let (step, blocks) = (cfg["step_blocks"].as_u64().unwrap_or(1), cfg["hunt_blocks"].as_u64().unwrap_or(1));
+        let first = (deadline - now).div_ceil(step) == blocks.div_ceil(step);
+        let f = if first { 0 } else { cfg["fill_fee_bps"].as_u64().unwrap_or(0) as u32 };
+        let fee = fill_fee(committed, C, hp, cfg["tribute_bps"].as_u64().unwrap_or(0) as u32, f);
+        if first {
+            println!("  open: {} blocks left (deadline {deadline}); step 1 until block {}: every commit pays the flat {} CAL per CAL fee, in any order", deadline - now, deadline - (blocks.div_ceil(step) - 1) * step, show(fee));
+        } else {
+            println!("  open: {} blocks left (deadline {deadline}); the next 1 CAL committed pays {} CAL fee (a larger stake pays the fee integrated over the fill it covers)", deadline - now, show(fee));
+        }
     } else {
         println!("  deadline {deadline} passed: `npm run hunt -- resolve` settles it ({})", if committed >= hp && committed > 0 { "will be Slain" } else { "will be Escaped" });
     }

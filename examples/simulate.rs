@@ -15,7 +15,8 @@
 //! Oracle: every number the contract produces is recomputed here, exactly, with arbitrary-precision
 //! integers and without calling the contract crate's arithmetic. For each commit, from its event: the
 //! fill before it (the round's commits must chain: each one's `committed - stake` is the previous one's
-//! `committed`), the fee (the per-token fee integrated over the fill the stake covers, rounded up once),
+//! `committed`), the fee (in step 1 the flat tribute; from step 2 the per-token fee integrated over the
+//! fill the stake covers; rounded up once),
 //! the weight (stake x steps left at the block it landed in, which must be the step of its round) and
 //! the CAL it took from the account (stake + fee, from the account's balance). For each hunt: the
 //! outcome, the pot (the hoard the oracle tracked), the next HP, every claim (stake + pot x weight /
@@ -47,7 +48,7 @@ const ROUNDS: u64 = 4;
 const STEP: u64 = 100;
 const SIT_OUT: u64 = 3;
 const TRIBUTE_BPS: u32 = 100;
-const VARIANT: &str = "v1.1";
+const VARIANT: &str = "v1.2";
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Strategy {
@@ -139,7 +140,8 @@ fn population(seed: u64, n: usize, split_k: usize, mix: &[u64; 4]) -> Vec<Hunter
     // 5% whales (about half wait-and-fill, a quarter solo, a quarter split whales that are the solo
     // whales' twins), the rest split by `mix` among early/watcher/quitter/first mover.
     // A split whale's extra accounts are appended after the n hunters.
-    let whales = (n / 20).max(2);
+    // At least 4, so that every whale strategy has a hunter (2 late, 1 solo, 1 split) at small n.
+    let whales = (n / 20).max(4);
     let others = assign(n - whales, mix);
     let late = whales / 2;
     let solo = late + (whales - late) / 2;
@@ -382,10 +384,12 @@ impl Sim<'_> {
             let after = self.chain_balances(&idx).await?;
             for l in &got {
                 ensure!(l.committed - l.stake == chained, "hunt {n}: commit by {} landed on {} but the bar was at {chained}", l.i, l.committed - l.stake);
-                let fee = oracle_fee(chained, l.stake, hp, TRIBUTE_BPS, self.fill_fee_bps);
-                ensure!(l.fee == fee, "hunt {n}: account {} fee {} != oracle {fee}", l.i, l.fee);
                 let steps = (deadline - l.height).div_ceil(STEP);
                 ensure!(steps == ROUNDS - round, "hunt {n}: a round-{} commit landed with {steps} steps left (spilled)", round + 1);
+                // Step 1 (round 1): the flat tribute only; from step 2: tribute + fill fee.
+                let fill_bps = if steps == ROUNDS { 0 } else { self.fill_fee_bps };
+                let fee = oracle_fee(chained, l.stake, hp, TRIBUTE_BPS, fill_bps);
+                ensure!(l.fee == fee, "hunt {n}: account {} fee {} != oracle {fee}", l.i, l.fee);
                 let weight = if self.rule_a { l.stake } else { l.stake * steps as u128 };
                 ensure!(l.weight == weight, "hunt {n}: account {} weight {} != oracle {weight}", l.i, l.weight);
                 let now = after.iter().find(|a| a.0 == l.i).unwrap().1;
@@ -611,13 +615,13 @@ async fn main() -> Result<()> {
             let joined: u32 = idx.iter().map(|&i| sim.joined[i]).sum();
             let net = end as f64 - start as f64;
             // Share of supply: burns raise everyone's share, including people who never play.
-            let share = (end as f64 / supply_end as f64) / (start as f64 / SUPPLY as f64) - 1.0;
+            let share = if start == 0 { 0.0 } else { (end as f64 / supply_end as f64) / (start as f64 / SUPPLY as f64) - 1.0 };
             json!({
                 "strategy": s.name(), "hunters": idx.iter().filter(|&&i| hunters[i].leader == i).count(), "accounts": idx.len(),
                 "storage_deposit_near": idx.len() as f64 * storage_min as f64 / 1e24,
                 "joins": joined, "fees_paid_cal": (sum(&sim.fees) as f64 / C as f64).round(),
                 "hoard_received_cal": (sum(&sim.received) as f64 / C as f64).round(),
-                "net_cal": (net / C as f64).round(), "net_pct_of_start": round2(100.0 * net / start as f64),
+                "net_cal": (net / C as f64).round(), "net_pct_of_start": round2(if start == 0 { 0.0 } else { 100.0 * net / start as f64 }),
                 "net_per_100_staked": round2(if staked == 0 { 0.0 } else { 100.0 * net / staked as f64 }),
                 "supply_share_change_pct": round2(100.0 * share),
             })

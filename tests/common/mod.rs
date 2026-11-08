@@ -30,7 +30,7 @@ pub fn launch_config(first_hp: u128, hunt_blocks: u64, step_blocks: u64) -> Valu
         "first_hp": first_hp.to_string(), "hunt_blocks": hunt_blocks, "step_blocks": step_blocks,
         "tribute_bps": 100, "fill_fee_bps": 1_000, "burn_bps": 1_000, "hp_up_bps": 11_000, "hp_down_bps": 7_000,
         "min_stake": CAL.to_string(), "entry_deposit": ENTRY_DEPOSIT.as_yoctonear().to_string(),
-        "record_deposit": RECORD_DEPOSIT.as_yoctonear().to_string(), "starter_amount": (1_000 * CAL).to_string(),
+        "record_deposit": RECORD_DEPOSIT.as_yoctonear().to_string(), "starter_amount": (1_000 * CAL).to_string(), "starters_per_hunt": 20,
     })
 }
 
@@ -42,7 +42,7 @@ pub fn config(rule: &str, first_hp: u128, hunt_blocks: u64, step_blocks: u64) ->
         "first_hp": first_hp.to_string(), "hunt_blocks": hunt_blocks, "step_blocks": step_blocks,
         "tribute_bps": 100, "fill_fee_bps": 0, "burn_bps": 1_000, "hp_up_bps": 12_500, "hp_down_bps": 8_000,
         "min_stake": "1", "entry_deposit": ENTRY_DEPOSIT.as_yoctonear().to_string(),
-        "record_deposit": RECORD_DEPOSIT.as_yoctonear().to_string(), "starter_amount": (1_000 * CAL).to_string(),
+        "record_deposit": RECORD_DEPOSIT.as_yoctonear().to_string(), "starter_amount": (1_000 * CAL).to_string(), "starters_per_hunt": 20,
     })
 }
 
@@ -70,12 +70,28 @@ pub async fn deploy<N: Network + 'static>(
     starter: u128,
     config: Value,
 ) -> Result<(Contract, ExecutionFinalResult)> {
+    deploy_code(worker, parent, name, holder, supply, hoard, starter, config, &wasm()?).await
+}
+
+/// `deploy` with other wasm bytes (only `tests/repro_v11.rs` uses it, to run the v1.1 wasm).
+#[allow(clippy::too_many_arguments)]
+pub async fn deploy_code<N: Network + 'static>(
+    worker: &Worker<N>,
+    parent: &Account,
+    name: &str,
+    holder: &AccountId,
+    supply: u128,
+    hoard: u128,
+    starter: u128,
+    config: Value,
+    code: &[u8],
+) -> Result<(Contract, ExecutionFinalResult)> {
     let id: AccountId = format!("{name}.{}", parent.id()).parse()?;
     let init = parent
         .batch(&id)
         .create_account()
         .transfer(NearToken::from_near(5))
-        .deploy(&wasm()?)
+        .deploy(code)
         .call(
             Function::new("new")
                 .args_json(json!({"holder": holder, "supply": supply.to_string(), "hoard": hoard.to_string(),

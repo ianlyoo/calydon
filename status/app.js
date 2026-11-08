@@ -52,6 +52,8 @@ const ERRORS = {
   BELOW_MIN_STAKE: "below the minimum stake", ATTACH_ENTRY_DEPOSIT: "a first commit to a hunt must attach the entry deposit",
   ATTACH_ONE_YOCTO: "a further commit to the same hunt attaches 1 yoctoNEAR", NOT_REGISTERED: "register (storage_deposit) first",
   STARTER_TAKEN: "this account already took its starter", STARTER_EMPTY: "the starter bucket is empty",
+  STARTERS_DONE_THIS_HUNT: "this hunt's starters are all given; the next hunt has new ones",
+  RECEIVER_IS_CONTRACT: "CAL goes to the contract only through commit",
   BEFORE_DEADLINE: "the deadline has not passed yet", ALREADY_RESOLVED: "already resolved", NOTHING_TO_CLAIM: "nothing to claim",
   NOT_RESOLVED: "not resolved yet", "The account doesn't have enough balance": "not enough CAL for stake + fee",
 };
@@ -66,6 +68,13 @@ function say(text, err = false) {
 }
 
 let contract, selector, me = null, cfg, state = {};
+
+// A hunt with no outcome is "open" before its deadline and "closed (unresolved)" after it, until someone resolves it.
+const outcome = (x) => x.outcome ?? (x.deadline - state.height <= 0 ? "closed (unresolved)" : "open");
+const outcomeClass = (x) => x.outcome ?? (x.deadline - state.height <= 0 ? "closed" : "");
+// Step 1 is the first step_blocks of a hunt (counted back from the deadline, as the contract does):
+// every commit landing there pays the flat tribute with no fill fee; the fill fee applies from step 2 on.
+const firstStep = (h) => Math.ceil((h.deadline - state.height) / cfg.step_blocks) === Math.ceil(cfg.hunt_blocks / cfg.step_blocks);
 
 async function send(method, args, deposit, label) {
   const wallet = await selector.wallet();
@@ -101,7 +110,8 @@ function preview() {
     rows.push(["", "enter an amount of CAL"]);
   } else {
     const hp = BigInt(h.hp), before = BigInt(h.committed);
-    const fee = fillFee(before, stake, hp, cfg.tribute_bps, cfg.fill_fee_bps);
+    const flat = firstStep(h);
+    const fee = fillFee(before, stake, hp, cfg.tribute_bps, flat ? 0 : cfg.fill_fee_bps);
     const left = h.deadline - state.height;
     const steps = cfg.rule === "EarlyWeight" ? BigInt(Math.max(0, Math.ceil(left / cfg.step_blocks))) : 1n;
     const weight = stake * steps;
@@ -115,7 +125,7 @@ function preview() {
     const ifSlain = myStake + share(pot, myW, total);
     const ifEscaped = myStake - ceilBps(myStake, cfg.burn_bps);
     const paid = myStake + fee; // earlier commits' fees in this hunt are not known to the page
-    rows.push(["You pay", `${cal(stake + fee)} = stake ${cal(stake)} + entry fee ${cal(fee)} (${(Number((fee * 1000000n) / stake) / 10000).toFixed(4)}% of the stake, the fee integrated over the fill from ${cal(before, 2)} to ${cal(before + stake, 2)})`]);
+    rows.push(["You pay", `${cal(stake + fee)} = stake ${cal(stake)} + entry fee ${cal(fee)} (${(Number((fee * 1000000n) / stake) / 10000).toFixed(4)}% of the stake, ${flat ? `the flat step-1 fee: no fill fee while the commit lands in step 1` : `the fee integrated over the fill from ${cal(before, 2)} to ${cal(before + stake, 2)}`})`]);
     rows.push(["NEAR attached", fresh ? `${near(cfg.entry_deposit)} entry deposit (your claim sends it back)` : "1 yoctoNEAR (you already have an entry in this hunt)"]);
     rows.push(["Weight", cfg.rule === "EarlyWeight" ? `${cal(stake, 2).replace(" CAL", "")} × ${steps} step(s) left = ${cal(weight, 2).replace(" CAL", "")}` : cal(weight)]);
     rows.push(["Bar after", `${cal(before + stake, 2)} of ${cal(hp, 2)}${slainNow ? " (at or past HP: slain if nothing changes)" : ` (${cal(hp - before - stake, 2)} still missing)`}`]);
@@ -124,7 +134,8 @@ function preview() {
     rows.push(["Net", `slain: ${cal(ifSlain - paid)} · escaped: ${cal(ifEscaped - paid)} (claim minus stake minus this fee${fresh ? "" : "; your earlier fees in this hunt not counted"})`]);
     if (cfg.rule === "EarlyWeight" && left > 0) {
       const stepEnd = h.deadline - (Number(steps) - 1) * cfg.step_blocks;
-      note = `Weight counts the step your commit lands in: ${steps} step(s) until block ${stepEnd} (${stepEnd - state.height} blocks), then ${Number(steps) - 1}.`;
+      note = `Weight counts the step your commit lands in: ${steps} step(s) until block ${stepEnd} (${stepEnd - state.height} blocks), then ${Number(steps) - 1}.`
+        + (flat ? ` Until then every commit pays the flat ${cfg.tribute_bps / 100}% fee in any order; from step 2 the fill fee applies.` : "");
     }
   }
   $("preview").innerHTML = rows.map(([k, v]) => `<tr><th>${k}</th><td style="text-align:left">${v}</td></tr>`).join("");
@@ -164,7 +175,7 @@ async function refresh() {
       if (!hunts.has(id) || hunts.get(id).claims < hunts.get(id).hunters) hunts.set(id, await view("hunt", { id }));
     hunts.set(h.id, h);
     $("log").innerHTML = [...hunts.values()].sort((a, b) => b.id - a.id).map((x) => `<tr><td>#${x.id}</td><td>${cal(x.hp, 2)}</td><td>${cal(x.committed, 2)}</td>
-      <td>${x.hunters}</td><td class="${x.outcome ?? ""}">${x.outcome ?? "open"}</td><td>${x.outcome === "Slain" ? cal(x.pot, 2) : "–"}</td>
+      <td>${x.hunters}</td><td class="${outcomeClass(x)}">${outcome(x)}</td><td>${x.outcome === "Slain" ? cal(x.pot, 2) : "–"}</td>
       <td>${x.claims}/${x.hunters}</td><td class="who">${x.first_spear ?? "–"}</td></tr>`).join("");
     if (me) await refreshMe(h);
     preview();
@@ -180,8 +191,11 @@ async function refreshMe(h) {
   $("myBal").textContent = cal(bal);
   $("myReg").textContent = reg ? "yes" : "no";
   $("register").hidden = !!reg;
-  $("myStarter").textContent = taken ? "taken" : BigInt(state.totals.starter_left) > 0n ? `available: ${cal(cfg.starter_amount, 0)}` : "bucket empty";
-  $("starter").hidden = !!taken || !reg || BigInt(state.totals.starter_left) === 0n;
+  const leftThisHunt = cfg.starters_per_hunt - (h.starters ?? 0);
+  $("myStarter").textContent = taken ? "taken" : BigInt(state.totals.starter_left) === 0n ? "bucket empty"
+    : leftThisHunt <= 0 ? `this hunt's ${cfg.starters_per_hunt} starters are given; the next hunt has new ones`
+    : `available: ${cal(cfg.starter_amount, 0)} (${leftThisHunt} of ${cfg.starters_per_hunt} left this hunt)`;
+  $("starter").hidden = !!taken || !reg || BigInt(state.totals.starter_left) === 0n || leftThisHunt <= 0;
   state.reg = !!reg;
   gate();
   const rows = [];
@@ -195,7 +209,7 @@ async function refreshMe(h) {
     if (x.outcome === "Slain") pays = cal(BigInt(e.stake) + share(BigInt(x.pot), BigInt(e.weight), BigInt(x.weight)));
     if (x.outcome === "Escaped") pays = cal(BigInt(e.stake) - ceilBps(BigInt(e.stake), cfg.burn_bps));
     if (x.outcome) button = `<button data-claim="${id}">Claim</button>`;
-    rows.push(`<tr><td>#${id}</td><td>${cal(e.stake, 2)}</td><td>${cal(e.weight, 2).replace(" CAL", "")}</td><td class="${x.outcome ?? ""}">${x.outcome ?? "open"}</td><td>${pays}</td><td>${button}</td></tr>`);
+    rows.push(`<tr><td>#${id}</td><td>${cal(e.stake, 2)}</td><td>${cal(e.weight, 2).replace(" CAL", "")}</td><td class="${outcomeClass(x)}">${outcome(x)}</td><td>${pays}</td><td>${button}</td></tr>`);
   }
   $("entriesPanel").hidden = rows.length === 0;
   $("entries").innerHTML = rows.reverse().join("");

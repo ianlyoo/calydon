@@ -1,7 +1,7 @@
-//! `npm run execute-testnet`: launches a fresh v1.1 instance on NEAR testnet with the launch values
+//! `npm run execute-testnet`: launches a fresh v1.2 instance on NEAR testnet with the launch values
 //! (created, deployed and initialised in one transaction, so the contract account never has an
 //! access key), gives three hunters their starter CAL, then runs three hunts: slain, escaped (with a
-//! plain transfer to the contract that resolve sweeps into the hoard), slain. Every transaction is
+//! plain transfer and an ft_transfer_call to the contract, both refused), slain. Every transaction is
 //! checked against the contract's arithmetic and written with its link to testnet/run.json.
 //! Keys are random, saved under the ignored .credentials/, never printed.
 mod common;
@@ -18,8 +18,18 @@ const C: u128 = 1_000_000_000_000_000_000;
 const HUNT_BLOCKS: u64 = 300;
 const STEP_BLOCKS: u64 = 75;
 
-struct Log(Vec<Value>);
+struct Log(Vec<Value>, Vec<Value>);
 impl Log {
+    /// A transaction that must fail with `error`; recorded under "refused".
+    fn refused(&mut self, step: &str, r: &ExecutionFinalResult, error: &str) -> Result<()> {
+        let got = failures(r).join("; ");
+        ensure!(r.is_failure() && got.contains(error), "{step}: expected {error}, got {got:?}");
+        let tx = r.outcome().transaction_hash.to_string();
+        let link = format!("https://testnet.nearblocks.io/txns/{tx}");
+        println!("{step}: refused {error}\n  {link}");
+        self.1.push(json!({"step": step, "tx": tx, "link": link, "signer": r.outcome().executor_id, "error": error}));
+        Ok(())
+    }
     fn tx(&mut self, step: &str, r: &ExecutionFinalResult) -> Result<Value> {
         ensure!(r.is_success(), "{step} failed: {:?}", failures(r));
         let tx = r.outcome().transaction_hash.to_string();
@@ -31,16 +41,23 @@ impl Log {
     }
 }
 
-/// Commits `stake` and checks the fee the contract took against `fill_fee` at the bar's fill before it.
+/// Commits `stake` and checks the fee the contract took: in the hunt's first step the flat tribute,
+/// from the second step tribute + `fill_fee` at the bar's fill before it (by the block it landed in).
 async fn commit_checked(log: &mut Log, cal: &Contract, who: &Account, stake: u128, hunt: u64) -> Result<u128> {
     let h = view(cal, "current_hunt", json!({})).await?;
-    let (before, hp) = (num(&h["committed"])?, num(&h["hp"])?);
+    let (before, hp, deadline) = (num(&h["committed"])?, num(&h["hp"])?, h["deadline"].as_u64().unwrap());
     let cfg = view(cal, "config", json!({})).await?;
-    let fee = fill_fee(before, stake, hp, cfg["tribute_bps"].as_u64().unwrap() as u32, cfg["fill_fee_bps"].as_u64().unwrap() as u32);
+    let (t, f) = (cfg["tribute_bps"].as_u64().unwrap() as u32, cfg["fill_fee_bps"].as_u64().unwrap() as u32);
+    let (step, blocks) = (cfg["step_blocks"].as_u64().unwrap(), cfg["hunt_blocks"].as_u64().unwrap());
     let had = balance(cal, who.id()).await?;
     let name = who.id().as_str().split('.').next().unwrap();
     let r = commit(cal, who, stake).await?;
-    log.tx(&format!("hunt {hunt}: {name} commit {} CAL (bar {}/{} CAL, fee {:.4} CAL)", stake / C, before / C, hp / C, fee as f64 / C as f64), &r)?;
+    let ev = events(&r).into_iter().find(|e| e["event"] == "commit").unwrap_or_default();
+    let height = ev["data"][0]["height"].as_u64().unwrap_or(0);
+    let first = (deadline - height).div_ceil(step) == blocks.div_ceil(step);
+    let fee = fill_fee(before, stake, hp, t, if first { 0 } else { f });
+    log.tx(&format!("hunt {hunt}: {name} commit {} CAL (bar {}/{} CAL, step {}, fee {:.4} CAL)", stake / C, before / C, hp / C,
+        blocks.div_ceil(step) - (deadline - height).div_ceil(step) + 1, fee as f64 / C as f64), &r)?;
     ensure!(had - balance(cal, who.id()).await? == stake + fee, "{name}: paid {} for stake {stake} + fee {fee}", had - balance(cal, who.id()).await?);
     Ok(fee)
 }
@@ -55,10 +72,10 @@ async fn execute_testnet() -> Result<()> {
     let bucket = 980_000 * C;
     let launched = supply + hoard + bucket;
     let cfg = launch_config(1_000 * C, HUNT_BLOCKS, STEP_BLOCKS);
-    let l = launch_testnet(&worker, "calydon-v11", &["alice", "bob", "carol"], cfg.clone(), supply, hoard, bucket, ".credentials/testnet").await?;
+    let l = launch_testnet(&worker, "calydon-v12", &["alice", "bob", "carol"], cfg.clone(), supply, hoard, bucket, ".credentials/testnet").await?;
     let (cal, [alice, bob, carol]) = (&l.cal, [&l.hunters[0], &l.hunters[1], &l.hunters[2]]);
     println!("root {} (launch holder), contract {} (no access key)", l.root.id(), cal.id());
-    let mut log = Log(vec![]);
+    let mut log = Log(vec![], vec![]);
     for (step, r) in &l.steps {
         log.tx(step, r)?;
     }
@@ -89,16 +106,15 @@ async fn execute_testnet() -> Result<()> {
     let h1 = view(cal, "current_hunt", json!({})).await?;
     ensure!(num(&h1["hp"])? == 1_100 * C);
     commit_checked(&mut log, cal, alice, 200 * C, 1).await?;
-    // A plain transfer to the contract: outside hoard + locked + unclaimed + starter bucket until resolve.
-    log.tx("hunt 1: holder ft_transfer 50 CAL to the contract (a plain transfer)", &send(cal, &l.root, cal.id(), 50 * C).await?)?;
-    let t = view(cal, "totals", json!({})).await?;
-    ensure!(num(&t["held"])? - parts(&t)? == 50 * C, "surplus before resolve");
-    let hoard1 = num(&t["hoard"])?;
+    // Transfers to the contract itself are refused (v1.2), so held stays equal to the parts.
+    log.refused("hunt 1: holder ft_transfer 50 CAL to the contract", &send(cal, &l.root, cal.id(), 50 * C).await?, "RECEIVER_IS_CONTRACT")?;
+    let call = l.root.call(cal.id(), "ft_transfer_call")
+        .args_json(json!({"receiver_id": cal.id(), "amount": (50 * C).to_string(), "msg": ""}))
+        .deposit(ONE).gas(near_workspaces::types::Gas::from_tgas(100)).transact().await?;
+    log.refused("hunt 1: holder ft_transfer_call 50 CAL to the contract", &call, "RECEIVER_IS_CONTRACT")?;
+    conservation(cal, &ids, launched).await?;
     wait_for(&worker, h1["deadline"].as_u64().unwrap()).await?;
-    let r1 = resolve(cal, resolver, 1).await?;
-    ensure!(log.tx("hunt 1: resolve (sweeps the 50 CAL into the hoard)", &r1)? == "Escaped");
-    ensure!(events(&r1).iter().any(|e| e["event"] == "sweep" && e["data"][0]["amount"] == json!((50 * C).to_string())));
-    ensure!(num(&view(cal, "totals", json!({})).await?["hoard"])? == hoard1 + 50 * C);
+    ensure!(log.tx("hunt 1: resolve", &resolve(cal, resolver, 1).await?)? == "Escaped");
     let paid = num(&log.tx("hunt 1: alice claim", &claim(cal, alice, 1).await?)?)?;
     ensure!(paid == 180 * C, "escaped payout {paid}");
     let t = conservation(cal, &ids, launched).await?;
@@ -121,16 +137,16 @@ async fn execute_testnet() -> Result<()> {
 
     let wasm_sha = std::process::Command::new("shasum").args(["-a", "256", "res/calydon.wasm"]).output()?;
     let record = json!({
-        "network": "testnet",
+        "network": "testnet", "release": "v1.2",
         "recorded_at_unix": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs(),
         "contract": cal.id(), "holder": l.root.id(), "hunters": [alice.id(), bob.id(), carol.id()],
         "wasm_sha256": String::from_utf8_lossy(&wasm_sha.stdout).split_whitespace().next(),
         "launch": {"holder_supply": supply.to_string(), "hoard": hoard.to_string(), "starter_bucket": bucket.to_string(), "config": cfg},
-        "steps": log.0, "end_totals": totals,
+        "steps": log.0, "refused": log.1, "end_totals": totals,
         "end_hunt": view(cal, "current_hunt", json!({})).await?,
     });
     std::fs::create_dir_all("testnet")?;
     std::fs::write("testnet/run.json", serde_json::to_string_pretty(&record)? + "\n")?;
-    println!("Calydon testnet: no access key; starters taken; hunts 0 slain, 1 escaped (50 CAL swept), 2 slain; every fee and payout as computed; I1 held. Record: testnet/run.json");
+    println!("Calydon testnet: no access key; starters taken; hunts 0 slain, 1 escaped (transfers to the contract refused), 2 slain; every fee and payout as computed; I1 held. Record: testnet/run.json");
     Ok(())
 }
