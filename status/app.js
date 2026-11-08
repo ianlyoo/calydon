@@ -126,6 +126,12 @@ function preview() {
     const ifEscaped = myStake - ceilBps(myStake, cfg.burn_bps);
     const paid = myStake + fee; // earlier commits' fees in this hunt are not known to the page
     rows.push(["You pay", `${cal(stake + fee)} = stake ${cal(stake)} + entry fee ${cal(fee)} (${(Number((fee * 1000000n) / stake) / 10000).toFixed(4)}% of the stake, ${flat ? `the flat step-1 fee: no fill fee while the commit lands in step 1` : `the fee integrated over the fill from ${cal(before, 2)} to ${cal(before + stake, 2)}`})`]);
+    if (flat && steps > 1n) {
+      // A wallet approval can take a minute; if the commit lands after step 1 it pays the fill fee and gets one step less.
+      const fee2 = fillFee(before, stake, hp, cfg.tribute_bps, cfg.fill_fee_bps);
+      const end1 = h.deadline - (Number(steps) - 1) * cfg.step_blocks;
+      rows.push(["If it lands after step 1", `step 1 ends at block ${end1} (${end1 - state.height} blocks from now); landing later, it pays entry fee ${cal(fee2)} instead of ${cal(fee)} and gets weight ${cal(stake * (steps - 1n), 2).replace(" CAL", "")}`]);
+    }
     rows.push(["NEAR attached", fresh ? `${near(cfg.entry_deposit)} entry deposit (your claim sends it back)` : "1 yoctoNEAR (you already have an entry in this hunt)"]);
     rows.push(["Weight", cfg.rule === "EarlyWeight" ? `${cal(stake, 2).replace(" CAL", "")} × ${steps} step(s) left = ${cal(weight, 2).replace(" CAL", "")}` : cal(weight)]);
     rows.push(["Bar after", `${cal(before + stake, 2)} of ${cal(hp, 2)}${slainNow ? " (at or past HP: slain if nothing changes)" : ` (${cal(hp - before - stake, 2)} still missing)`}`]);

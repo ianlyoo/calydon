@@ -2,7 +2,7 @@
 // through Intear Wallet, one step per call. Not part of `npm run verify`; it needs playwright-core and a
 // Chromium (CHROME=<path to the browser binary>), neither of which is a dependency of this repository.
 //   node scripts/browser-session.mjs <profileDir> <shotDir> <step> [arg]
-//   steps: signin | register | starter | resolve <hunt> | commit <CAL> | claim <hunt> | shot <name> | text
+//   steps: signin | register | starter | resolve <hunt> | commit <CAL> | preview <CAL> | claim <hunt> | shot <name> | text
 // <profileDir> is a browser profile in which a testnet account was imported at wallet.intear.tech
 // beforehand. Each step clicks the page's button and then "Approve" in the wallet window.
 import { chromium } from "playwright-core";
@@ -77,6 +77,10 @@ if (step === "signin") {
 } else if (step === "claim") {
   await approve(`[data-claim="${arg}"]`, `claim-${arg}`);
   await shot(`claimed-${arg}`);
+} else if (step === "preview") {
+  await page.fill("#stake", arg);
+  await page.waitForTimeout(1500);
+  await shot("commit-preview-step1");
 } else if (step === "shot") {
   await shot(arg);
 } else if (step === "text") {

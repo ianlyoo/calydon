@@ -1,0 +1,251 @@
+{
+  "rule": "B",
+  "hunts_per_generation": 20,
+  "hunters": 300,
+  "update": "share x max(0, 1 + net % of start / 100), renormalised to 1000",
+  "strategies": [
+    "early committer",
+    "threshold watcher",
+    "quitter",
+    "first mover (round 1, lands first)"
+  ],
+  "complete": true,
+  "generations": [
+    {
+      "generation": 0,
+      "seed": 2000,
+      "mix_per_mille": [
+        250,
+        250,
+        250,
+        250
+      ],
+      "kill_rate_pct": 85,
+      "net_pct_of_start": {
+        "early committer": 10.24,
+        "threshold watcher": -20.69,
+        "quitter": 6.58,
+        "first mover (round 1, lands first)": 11.07
+      },
+      "hunters": {
+        "early committer": 72,
+        "threshold watcher": 71,
+        "quitter": 71,
+        "first mover (round 1, lands first)": 71
+      }
+    },
+    {
+      "generation": 1,
+      "seed": 2001,
+      "mix_per_mille": [
+        271,
+        195,
+        262,
+        272
+      ],
+      "kill_rate_pct": 85,
+      "net_pct_of_start": {
+        "early committer": 5.86,
+        "threshold watcher": -22.65,
+        "quitter": 6.42,
+        "first mover (round 1, lands first)": 7.09
+      },
+      "hunters": {
+        "early committer": 77,
+        "threshold watcher": 56,
+        "quitter": 75,
+        "first mover (round 1, lands first)": 77
+      }
+    },
+    {
+      "generation": 2,
+      "seed": 2002,
+      "mix_per_mille": [
+        285,
+        150,
+        277,
+        288
+      ],
+      "kill_rate_pct": 85,
+      "net_pct_of_start": {
+        "early committer": 5.16,
+        "threshold watcher": -25.01,
+        "quitter": 4.03,
+        "first mover (round 1, lands first)": 5.27
+      },
+      "hunters": {
+        "early committer": 81,
+        "threshold watcher": 43,
+        "quitter": 79,
+        "first mover (round 1, lands first)": 82
+      }
+    },
+    {
+      "generation": 3,
+      "seed": 2003,
+      "mix_per_mille": [
+        299,
+        112,
+        287,
+        302
+      ],
+      "kill_rate_pct": 85,
+      "net_pct_of_start": {
+        "early committer": 2.17,
+        "threshold watcher": -30.02,
+        "quitter": 1.62,
+        "first mover (round 1, lands first)": 1.59
+      },
+      "hunters": {
+        "early committer": 85,
+        "threshold watcher": 32,
+        "quitter": 82,
+        "first mover (round 1, lands first)": 86
+      }
+    },
+    {
+      "generation": 4,
+      "seed": 2004,
+      "mix_per_mille": [
+        311,
+        80,
+        297,
+        312
+      ],
+      "kill_rate_pct": 85,
+      "net_pct_of_start": {
+        "early committer": 3.92,
+        "threshold watcher": -25.42,
+        "quitter": 2.37,
+        "first mover (round 1, lands first)": 3.46
+      },
+      "hunters": {
+        "early committer": 88,
+        "threshold watcher": 23,
+        "quitter": 85,
+        "first mover (round 1, lands first)": 89
+      }
+    },
+    {
+      "generation": 5,
+      "seed": 2005,
+      "mix_per_mille": [
+        320,
+        59,
+        301,
+        320
+      ],
+      "kill_rate_pct": 85,
+      "net_pct_of_start": {
+        "early committer": 0.66,
+        "threshold watcher": -32.69,
+        "quitter": 1.23,
+        "first mover (round 1, lands first)": 1.05
+      },
+      "hunters": {
+        "early committer": 91,
+        "threshold watcher": 17,
+        "quitter": 86,
+        "first mover (round 1, lands first)": 91
+      }
+    },
+    {
+      "generation": 6,
+      "seed": 2006,
+      "mix_per_mille": [
+        325,
+        40,
+        308,
+        327
+      ],
+      "kill_rate_pct": 85,
+      "net_pct_of_start": {
+        "early committer": 2.98,
+        "threshold watcher": -26.73,
+        "quitter": 2.9,
+        "first mover (round 1, lands first)": 2.35
+      },
+      "hunters": {
+        "early committer": 93,
+        "threshold watcher": 11,
+        "quitter": 88,
+        "first mover (round 1, lands first)": 93
+      }
+    },
+    {
+      "generation": 7,
+      "seed": 2007,
+      "mix_per_mille": [
+        329,
+        29,
+        312,
+        330
+      ],
+      "kill_rate_pct": 85,
+      "net_pct_of_start": {
+        "early committer": 0.37,
+        "threshold watcher": -28.53,
+        "quitter": 0.37,
+        "first mover (round 1, lands first)": -0.56
+      },
+      "hunters": {
+        "early committer": 94,
+        "threshold watcher": 8,
+        "quitter": 89,
+        "first mover (round 1, lands first)": 94
+      }
+    },
+    {
+      "generation": 8,
+      "seed": 2008,
+      "mix_per_mille": [
+        332,
+        21,
+        316,
+        331
+      ],
+      "kill_rate_pct": 85,
+      "net_pct_of_start": {
+        "early committer": -1.53,
+        "threshold watcher": -36.45,
+        "quitter": -0.92,
+        "first mover (round 1, lands first)": -1.24
+      },
+      "hunters": {
+        "early committer": 95,
+        "threshold watcher": 6,
+        "quitter": 90,
+        "first mover (round 1, lands first)": 94
+      }
+    },
+    {
+      "generation": 9,
+      "seed": 2009,
+      "mix_per_mille": [
+        334,
+        14,
+        319,
+        333
+      ],
+      "kill_rate_pct": 85,
+      "net_pct_of_start": {
+        "early committer": 2.41,
+        "threshold watcher": -17.31,
+        "quitter": 1.49,
+        "first mover (round 1, lands first)": 1.4
+      },
+      "hunters": {
+        "early committer": 95,
+        "threshold watcher": 4,
+        "quitter": 91,
+        "first mover (round 1, lands first)": 95
+      }
+    }
+  ],
+  "final_mix_per_mille": [
+    337,
+    11,
+    319,
+    333
+  ]
+}

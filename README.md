@@ -4,27 +4,30 @@ A memecoin you hunt together, on NEAR. Holders lock their own CAL against a beas
 deadline. If the total reaches the HP, the beast is slain and the hunters share the hoard. If it
 falls short, the beast escapes with 10% of every stake, and that 10% burns.
 
-Status: **v1.1, NEAR testnet only.** The v1.1 instance
-[`cal.calydon-v11-1794122775.testnet`](https://testnet.nearblocks.io/address/cal.calydon-v11-1794122775.testnet)
+Status: **v1.2, NEAR testnet only.** The v1.2 instance
+[`cal.calydon-v12-1794130347.testnet`](https://testnet.nearblocks.io/address/cal.calydon-v12-1794130347.testnet)
 was created, deployed and initialised in **one transaction** and has **never had an access key**, so
 no transaction can be signed as that account and its code cannot be replaced. Its code hash equals
 `res/calydon.wasm`, which `npm run verify:reproducible` rebuilds byte for byte from this repository.
 `npm run observe-testnet` checks all of this without any key.
 
-**v1.0 is superseded.** The v1.0 instance `cal.calydon-v1-1794114512.testnet` (tag `v1.0`) is
-immutable like every instance, so it keeps running v1.0's code; its record moved to
-[testnet/v1.0/run.json](testnet/v1.0/run.json) (`node scripts/observe-testnet.mjs testnet/v1.0/run.json`
-still checks it). What v1.1 changes, each with its check:
+**v1.1 and v1.0 are superseded.** Their instances (`cal.calydon-v11-1794122775.testnet`, tag `v1.1`;
+`cal.calydon-v1-1794114512.testnet`, tag `v1.0`) are immutable like every instance, so they keep
+running their own code; their records moved to [testnet/v1.1/run.json](testnet/v1.1/run.json) and
+[testnet/v1.0/run.json](testnet/v1.0/run.json) (`node scripts/observe-testnet.mjs testnet/v1.1/run.json`
+still checks one). What v1.2 changes, each with its check:
 
 | Change | Checked by |
 |---|---|
-| Playable in a browser: `npm run page` with NEAR wallet sign-in, storage_deposit, starter, commit with a live preview, resolve, claim, your entries, deadline feedback | §3; one session recorded in [docs/browser/](docs/browser/) |
-| A commit that creates an entry attaches 0.005 NEAR for its storage (returned by its claim); `resolve` and `starter` attach 0.005 NEAR; any call whose storage is not covered is refused; minimum stake 1 CAL. v1.0 paid storage from the contract's own NEAR, so enough tiny commits could halt it ([MECHANIC.md §5](MECHANIC.md#5-limits-stated-plainly)) | `npm run verify`, `v1_1_storage_starter_sweep` claims 2, 3, 5 |
-| Supply in the contract: holder 1%, launch hoard 1%, starter bucket 98%; `starter()` gives 1,000 CAL once per registered account (demo-level) | claim 1 of the same test; the testnet record |
-| `resolve` sweeps CAL sent to the contract by plain transfer into the hoard; the observer reports any surplus | claim 4; testnet hunt 1 (50 CAL swept) |
-| create + deploy + `new` in one transaction (v1.0 deleted its keys afterwards) | `rule_a_hunts` claim 1; `observe-testnet` |
-| First Spear: each hunt records its first committer, shown on the page | claim 5; testnet hunt log |
-| Simulation: exact oracle for every fee, weight and payout, 5 seeds of the launch cell with mean ± sd, a first-mover agent (on top in every cell), a replicator run | §5; MECHANIC.md §3 |
+| `ft_transfer` / `ft_transfer_call` whose receiver is the contract itself are refused (`RECEIVER_IS_CONTRACT`), and `resolve` no longer sweeps. In v1.1 an `ft_transfer_call` to the contract that was refunded after a `resolve` had swept it made the next `resolve` fail, so the game would halt; reproduced in sandbox against the v1.1 wasm ([VERIFY.md §A](VERIFY.md#v1_2_storage_starter_transfers-storage-deposits-the-starter-bucket-and-its-per-hunt-cap-transfers-to-the-contract-first-spear-launch-values-starters_per_hunt-2), [docs/journey.md](docs/journey.md)) | `npm run verify`, `v1_2_storage_starter_transfers` claim 4; testnet hunt 1 (two refused transfers); `tests/repro_v11.rs` for v1.1 |
+| Every commit in a hunt's step 1 pays the flat 1% fee, in any order; the rising fill fee applies from step 2 | `launch_values` claim 3; testnet hunts 0–2 (all step 1); the browser session (a step-2 commit) |
+| At most 20 starters per hunt (`starters_per_hunt`, reset when a hunt opens) | `v1_2_storage_starter_transfers` claim 1; `config()` |
+| The page shows "closed (unresolved)" for a hunt past its deadline that nobody resolved yet, the step-1 fee and what a commit pays if it lands after step 1, and starters left this hunt | §3; [docs/browser/](docs/browser/) |
+| Simulation re-run on the v1.2 wasm: 5 launch seeds and a replicator run; whale count for small populations; no NaN for an empty strategy; the replicator writes its summary every generation | §5; MECHANIC.md §3 |
+
+Carried over from v1.1: storage deposits for every record (an entry's is returned by its claim), the
+starter bucket, one-transaction init, First Spear, the browser page with Intear Wallet, the exact
+simulation oracle ([testnet/v1.1/run.json](testnet/v1.1/run.json), tag `v1.1`).
 
 Every claim below comes with the command that checks it and the output it printed for us.
 [VERIFY.md](VERIFY.md) lists each claim → command → expected output. The design, the simulation
@@ -34,13 +37,13 @@ tables and the limits are in [MECHANIC.md](MECHANIC.md).
 
 | | |
 |---|---|
-| `starter()` | Once per registered account: 1,000 CAL from the starter bucket (980,000 CAL at launch), attaching 0.005 NEAR. Demo-level: more accounts get more starters. |
-| `commit(amount)` | Locks your own CAL (at least 1 CAL) in the current hunt. The entry fee is paid on top and goes into the hoard: 1% for a token that goes into an empty bar, rising linearly to 11% for a token that goes into a full bar (and 11% past the HP); the fee is that rate integrated over the fill your stake covers. Your first commit to a hunt attaches 0.005 NEAR (the entry's storage, returned by your claim), a later one 1 yoctoNEAR. The hunt's first committer is its First Spear. |
+| `starter()` | Once per registered account: 1,000 CAL from the starter bucket (980,000 CAL at launch), attaching 0.005 NEAR; at most 20 starters per hunt (the count resets when the next hunt opens). Demo-level: the cap paces distribution, and more accounts still get more starters over time. |
+| `commit(amount)` | Locks your own CAL (at least 1 CAL) in the current hunt. The entry fee is paid on top and goes into the hoard. In step 1 (the hunt's first quarter) every commit pays a flat 1%, in any order. From step 2 on it is 1% for a token that goes into an empty bar, rising linearly to 11% for a token that goes into a full bar (and 11% past the HP); the fee is that rate integrated over the fill your stake covers. Your first commit to a hunt attaches 0.005 NEAR (the entry's storage, returned by your claim), a later one 1 yoctoNEAR. The hunt's first committer is its First Spear. |
 | Reward rule B | A commit's weight is stake × the number of steps left before the deadline (4 steps per hunt on testnet). |
-| `resolve(hunt)` | Anyone, once, after the deadline, attaching 0.005 NEAR (it stores the next hunt). Slain if committed ≥ HP. CAL sent to the contract by plain transfer is swept into the hoard first. |
+| `resolve(hunt)` | Anyone, once, after the deadline, attaching 0.005 NEAR (it stores the next hunt). Slain if committed ≥ HP. |
 | `claim(hunt)` | Once per hunter. Slain: stake + hoard × weight / total weight, rounded down. Escaped: stake − 10% (the 10% burns, rounded up); the hoard rolls over. Sends the entry's 0.005 NEAR back. |
 | Next HP | ×1.1 after a kill, ×0.7 after an escape (equilibrium kill rate ≈ 79%). A hunt nobody joins is an escape, so the HP keeps shrinking (×0.7 each) until someone can fill it. |
-| Supply | Minted once at `new` (testnet: holder 10,000, launch hoard 10,000, starter bucket 980,000 CAL); it only falls, by escape burns. `ft_transfer` / `ft_transfer_call` are plain NEP-141 with no fee. |
+| Supply | Minted once at `new` (testnet: holder 10,000, launch hoard 10,000, starter bucket 980,000 CAL); it only falls, by escape burns. `ft_transfer` / `ft_transfer_call` are plain NEP-141 with no fee; a transfer whose receiver is the contract itself is refused (CAL reaches it only through `commit`). |
 | Admin | None: no owner, setter, pause or upgrade method. The views are `config`, `current_hunt`, `hunt`, `entry`, `totals`, `starter_taken`. |
 
 Why each rule exists, and the problem the rising entry fee answers: [MECHANIC.md §1–2](MECHANIC.md).
@@ -78,7 +81,7 @@ the committed `res/calydon.wasm` (the bytes deployed on testnet) and asserts eve
 contract state, balances and execution outcomes, checking conservation (I1) after every step. The
 first run downloads the crates and the sandbox binary. Nothing in it touches testnet.
 
-Expected output (abridged; from that container run):
+Expected output (abridged; from the macOS run of the release commit):
 
 ```text
 test tests::fill_fees ... ok
@@ -87,14 +90,15 @@ test tests::rounding_helpers ... ok
 test tests::splitting_never_pays_more ... ok
 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
 
+test v11_self_transfer_halts_resolve ... ignored
 test execute_testnet ... ignored, uses NEAR testnet and the faucet; run with `npm run execute-testnet`
 
-test launch_values ... HELD  1  launch values are fixed at init and readable: rule B, tribute 1%, fill fee up to +10%, burn 10%, HP x1.1 / x0.7
+test launch_values ... HELD  1  launch values are fixed at init and readable: rule B, tribute 1% (flat in step 1), fill fee up to +10% from step 2, burn 10%, HP x1.1 / x0.7, 20 starters per hunt
 HELD  2  refused commits change nothing: below the 1-CAL minimum stake, a new entry without its storage deposit, stake + fee above the balance
-HELD  3  the entry fee rises with the bar's fill and goes into the hoard; rule B weights a commit by the steps left
-         observed: alice 600 into an empty bar: fee 24 CAL (1% + 10% x 0.3 average fill); bob 500 at 600/1000: fee 47 CAL (400 at 1% + 10% x 0.8, 100 past HP at 11%); weights 600x4, 500x2; hoard 1000 + 71 = 1071 CAL
+HELD  3  step 1 has one flat fee, whatever order commits land in; from step 2 the entry fee rises with the bar's fill; fees go into the hoard; rule B weights a commit by the steps left
+         observed: step 1: alice 600 into an empty bar: fee 6 CAL (1%); dave 100 into a bar 60% full: fee 1 CAL (1%); step 3: bob 500 at 700/1000: fee 50.5 CAL (300 at 1% + 10% x 0.85, 200 past HP at 11%); weights 600x4, 100x4, 500x2; hoard 1000 + 57.5 = 1057.5 CAL
 ...
-Calydon verify (launch values: R2 fee, rule B, HP x1.1/x0.7): 7 claims held, 0 broken.
+Calydon verify (launch values: flat step 1, fill fee from step 2, rule B, HP x1.1/x0.7): 7 claims held, 0 broken.
 ok
 test rule_a_hunts ... HELD  1  every parameter is fixed at init and readable; the wasm exports no setter, admin or pause method (I4; contract_source_metadata is the sdk's read-only NEP-330 view); create + deploy + new is one transaction and the contract account has no access key
 ...
@@ -104,23 +108,21 @@ test rule_b_and_splitting ... HELD  1  rule B: no cap; the hoard is shared by st
 HELD  2  I3 on chain: splitting a stake of 2 into 1 + 1 does not pay more (shares round down, tributes round up)
 Calydon verify (rule B and splitting, arithmetic-test values): 2 claims held, 0 broken.
 ok
-test v1_1_storage_starter_sweep ... HELD  1  starter(): a registered account takes 1,000 CAL once from the starter bucket; the last one gets what is left, then it is empty
+test v1_2_storage_starter_transfers ... HELD  1  starter(): a registered account takes 1,000 CAL once from the starter bucket, at most starters_per_hunt (here 2) per hunt
 HELD  2  storage: a commit that creates an entry must attach the entry deposit (5 mNEAR), a later commit to the same entry 1 yocto; the contract's free NEAR does not fall
-         observed: alice's first commit added 119 bytes (with the hunt's First Spear), bob's 98 bytes = 980000000000000000000 yoctoNEAR of storage, under the 5 mNEAR attached; [...] free NEAR 2197520000000000000000000 -> 2205350000000000000000001 yocto
 HELD  3  the halt scenario: storage growth that the attached NEAR does not cover is refused, so commits cannot spend the contract's own NEAR
-         observed: instance with entry_deposit = 1 yocto: first commit panics STORAGE_NOT_COVERED; no entry stored; contract free NEAR not lower
-HELD  4  a plain transfer to the contract (77 CAL) shows as held - parts; resolve sweeps it into the hoard, so the identity holds again and it is paid out with the pot
+HELD  4  transfers to the contract itself are refused, so held == hoard + locked + unclaimed + starter bucket always; the v1.1 race (ft_transfer_call to the contract, resolve before its refund) cannot happen; the starter count starts again in a new hunt
+         observed: ft_transfer 77 CAL to the contract: panic RECEIVER_IS_CONTRACT; ft_transfer_call 500 CAL to the contract: panic RECEIVER_IS_CONTRACT; resolve(0) one block later: Slain, pot = hoard 1000850000000000000000 (nothing swept), held == parts; resolve(1): Escaped; resolve without the record deposit: panic ATTACH_RECORD_DEPOSIT; in hunt 2 carol got the last 500 CAL; dave: panic STARTER_EMPTY
 HELD  5  claim pays the CAL and sends the 5 mNEAR entry deposit back; First Spear of hunt 0 is alice, the first to commit
-         observed: alice claimed 454.7352 CAL and her NEAR rose by 0.004481 (5 mNEAR minus gas); first_spear = "alice.test.near"; [...]
-Calydon verify (v1.1 storage, starter, sweep): 5 claims held, 0 broken.
+Calydon verify (storage, starter, transfers): 5 claims held, 0 broken.
 ok
 
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 95.86s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 107.24s
 ```
 
 `rule_a_hunts` and `rule_b_and_splitting` run the same wasm with arithmetic-test values (no fill fee,
 HP ×1.25 / ×0.8) so each payout can be checked by hand; `launch_values` and
-`v1_1_storage_starter_sweep` run the launch values. The full list of claims and their `observed:`
+`v1_2_storage_starter_transfers` run the launch values. The full list of claims and their `observed:`
 lines: [VERIFY.md §A](VERIFY.md#a-npm-run-verify-local-sandbox-no-account-or-key).
 
 ## 2. Check the live testnet instance → see `All 5 checks hold`
@@ -129,81 +131,84 @@ lines: [VERIFY.md §A](VERIFY.md#a-npm-run-verify-local-sandbox-no-account-or-ke
 npm run observe-testnet
 ```
 
-Read-only, Node only, no key. It reads [testnet/run.json](testnet/run.json) (the recorded v1.1 run)
-and asks the public testnet RPC. Output on 2026-11-08 17:22 KST in the container above (the latest hunt is open or waiting to be
-resolved whenever you run it; anyone may resolve it):
+Read-only, Node only, no key. It reads [testnet/run.json](testnet/run.json) (the recorded v1.2 run)
+and asks the public testnet RPC. Output on 2026-11-08 18:42 KST, right after the run (the latest hunt
+is open or waiting to be resolved whenever you run it; anyone may resolve it, and hunts 4 and 6 since
+then are the browser session of §3):
 
 ```text
-Calydon v1.1 on NEAR testnet: cal.calydon-v11-1794122775.testnet
+Calydon v1.2 on NEAR testnet: cal.calydon-v12-1794130347.testnet
 
 OK    deployed code = res/calydon.wasm (the reproducible build; rebuild it with npm run verify:reproducible)
-      chain code_hash 21jLBW4mzWYK1oW2bV2HTC7yRPaKS6MMmr5NjaUxAgpt; res/calydon.wasm sha256 0f0b8ce7b02ca03d1edf1d4e0053a198f880cd1131e8dbaf288a0594ee15754d
-      NEP-330 on chain: git+https://github.com/ianlyoo/calydon?rev=9000bcf84cbe5d0fb0b94a85c27cb3da21812556, image docker.io/library/rust:1.99.1-slim-bookworm
+      chain code_hash 5GuUinESoDknp1ge6t5jTRno2yioVtif8DR5UQBJUgGP; res/calydon.wasm sha256 3f81cbfd5022cd46d1dde89019914b958c449f68646f1525f0592d9deff4e3c0
+      NEP-330 on chain: git+https://github.com/ianlyoo/calydon?rev=008c805eecc1382e5743577bd2fd746354463e40, image docker.io/library/rust:1.99.1-slim-bookworm
 OK    the contract account was created, deployed and initialised in one transaction with no key, and has 0 access keys now (no redeploy, no admin call)
-      init tx 2rTsy5KCJjw3KFJsBdTCHL9M1TSrNSva741uQPAgnwDp actions: CreateAccount, Transfer, DeployContract, FunctionCall(new); view_access_key_list: 0 keys
+      init tx AaW9hPJHJVAEDzr48EyY4bSPvgm8KgL3VyNcM9w9k6pm actions: CreateAccount, Transfer, DeployContract, FunctionCall(new); view_access_key_list: 0 keys
 OK    config() = the launch values recorded at init
-      rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 slain / x0.7 escaped, hunts of 300 blocks
-OK    all 23 recorded transactions succeeded on chain with the recorded return values
-      23 of 23, e.g. https://testnet.nearblocks.io/txns/3FZN7r2b6dvJoeqvKnTcb37yC3mMCWMpbWbn1d4sKJEv
-OK    totals: held >= hoard + locked + unclaimed + starter bucket (surplus reported); supply + burned = launched
-      supply 999980 CAL, burned 20, hoard 0, locked 0, unclaimed 0, starter bucket 975000; surplus 0 CAL
+      rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 slain / x0.7 escaped, hunts of 300 blocks, fill fee from step 2 of 75 blocks, 20 starters per hunt
+OK    all 22 recorded transactions succeeded on chain with the recorded return values; the 2 recorded as refused failed with the recorded error
+      22 of 22, e.g. https://testnet.nearblocks.io/txns/941WAYTfqiQkdAvETDQpMpekyu3HnhB8dhESgi2bBPxU
+      refused: hunt 1: holder ft_transfer 50 CAL to the contract: RECEIVER_IS_CONTRACT, https://testnet.nearblocks.io/txns/5ry7JrkVZe4eoqwHSuaVX2qAy2dnEMqbeg4Gywh9ycYd
+      refused: hunt 1: holder ft_transfer_call 50 CAL to the contract: RECEIVER_IS_CONTRACT, https://testnet.nearblocks.io/txns/Hr4YDos6J46qwVmaBJgv4kALsZzAmAaztPLfZpFfdgge
+OK    totals: held = hoard + locked + unclaimed + starter bucket; supply + burned = launched
+      supply 999980 CAL, burned 20, hoard 0.000000, locked 0, unclaimed 0, starter bucket 977000; held 977000.000000
 
 Hunt log:
-  hunt 0: HP 1000 CAL, committed 1100 by 3, Slain, pot 10071 CAL, claims 3/3, First Spear alice.calydon-v11-1794122775.testnet
-  hunt 1: HP 1100 CAL, committed 200 by 1, Escaped, claims 1/1, First Spear alice.calydon-v11-1794122775.testnet
-  hunt 2: HP 770 CAL, committed 800 by 2, Slain, pot 103.318181 CAL, claims 2/2, First Spear bob.calydon-v11-1794122775.testnet
-  hunt 3: HP 847 CAL, committed 0 by 0, Escaped, claims 0/0
-  hunt 4: HP 592.9 CAL, committed 600 by 1, Slain, pot 36.355 CAL, claims 1/1, First Spear player.calydon-v11-1794122775.testnet
-  hunt 5: HP 652.19 CAL, committed 0 by 0, Escaped, claims 0/0
-  hunt 6: HP 456.533 CAL, committed 600 by 1, Slain, pot 43.17335 CAL, claims 1/1, First Spear player2.calydon-v11-1794122775.testnet
-  hunt 7: HP 502.1863 CAL, committed 0 by 0, deadline passed, not resolved yet, claims 0/0
+  hunt 0: HP 1000 CAL, committed 1100 by 3, Slain, pot 10011 CAL, claims 3/3, First Spear alice.calydon-v12-1794130347.testnet
+  hunt 1: HP 1100 CAL, committed 200 by 1, Escaped, claims 1/1, First Spear alice.calydon-v12-1794130347.testnet
+  hunt 2: HP 770 CAL, committed 800 by 2, Slain, pot 10.000000 CAL, claims 2/2, First Spear bob.calydon-v12-1794130347.testnet
+  hunt 3: HP 847 CAL, committed 0 by 0, open, 245 blocks left, claims 0/0
 
 All 5 checks hold.
 ```
 
-Hunts 4 and 6 are the two browser sessions of §3 (the recorded one is hunt 6). The scripts try the public FastNEAR archival RPC, then
+The scripts try the public FastNEAR archival RPC, then
 `test.rpc.fastnear.com`, then `archival-rpc.testnet.near.org`; `CALYDON_TESTNET_RPC=<url>` replaces
 that list (and the RPC of the CLI, whose default is `https://test.rpc.fastnear.com`).
 
 ### The recorded testnet run
 
-`npm run execute-testnet` produced [testnet/run.json](testnet/run.json) on 2026-11-08 (16:35 KST):
-a fresh faucet account `calydon-v11-1794122775.testnet` is the launch holder (10,000 CAL),
+`npm run execute-testnet` produced [testnet/run.json](testnet/run.json) on 2026-11-08 (18:32–18:42 KST):
+a fresh faucet account `calydon-v12-1794130347.testnet` is the launch holder (10,000 CAL),
 `cal.<it>` runs the contract, and three hunters register and take their starters. Each fee and
-payout was checked against the contract's arithmetic (`fill_fee`, `share`) before it was recorded.
+payout was checked against the contract's arithmetic (`fill_fee`, `share`) before it was recorded,
+and each refused call was checked to fail with the recorded error.
 
 | Step | Returned | Transaction |
 |---|---|---|
-| create + deploy + `new` in one transaction | – | [2rTsy5KC…](https://testnet.nearblocks.io/txns/2rTsy5KCJjw3KFJsBdTCHL9M1TSrNSva741uQPAgnwDp) |
-| storage_deposit alice | registered | [J9KvNpwY…](https://testnet.nearblocks.io/txns/J9KvNpwY4dfo7QhSMUEpHHELiyxgSpbJenPpYvXsiizo) |
-| starter alice | 1,000 CAL | [Cui5u13m…](https://testnet.nearblocks.io/txns/Cui5u13mbCztFV4gAQGrU138ufPqWz5T8Zrq4f9Ytcnx) |
-| storage_deposit bob | registered | [48aX6nJY…](https://testnet.nearblocks.io/txns/48aX6nJYpCD1L94UFxZyE82YNSLhdL38r8zj3zHmWmKS) |
-| starter bob | 1,000 CAL | [FTUG4XiA…](https://testnet.nearblocks.io/txns/FTUG4XiAS3KHNFousXAk3T5JWJr9DginGi7CNXPeh8wF) |
-| storage_deposit carol | registered | [3wsdPwFE…](https://testnet.nearblocks.io/txns/3wsdPwFEtXqVkm9dGTzzUXcpmZxRFVWx9vMZA8iNpHWC) |
-| starter carol | 1,000 CAL | [GUfQ9gQn…](https://testnet.nearblocks.io/txns/GUfQ9gQnYGoP8QFmoVvCcFpMpYrYCUy3sW3Z3YYYWSY6) |
-| hunt 0: alice commit 400 CAL (bar 0/1000 CAL, fee 12.0000 CAL) | 400 CAL locked | [DbDx6ZLf…](https://testnet.nearblocks.io/txns/DbDx6ZLfLtLXeqov542QhMMpzKwVU6CG3G2a2Vbnd8U4) |
-| hunt 0: bob commit 300 CAL (bar 400/1000 CAL, fee 19.5000 CAL) | 300 CAL locked | [2pB9oqvQ…](https://testnet.nearblocks.io/txns/2pB9oqvQzVrPhxFj5JyBmLfLSsYqsosFtJhnxUP3JPuw) |
-| hunt 0: carol commit 400 CAL (bar 700/1000 CAL, fee 39.5000 CAL) | 400 CAL locked | [B6MjPWKW…](https://testnet.nearblocks.io/txns/B6MjPWKWy7uku6pbE57AnzwqetR1yXEyCcGokxB33JM6) |
-| hunt 0: resolve | `Slain` | [3FZN7r2b…](https://testnet.nearblocks.io/txns/3FZN7r2b6dvJoeqvKnTcb37yC3mMCWMpbWbn1d4sKJEv) |
-| hunt 0: alice claim | 4,062.181818… CAL | [HPMzKZtP…](https://testnet.nearblocks.io/txns/HPMzKZtPfqNebaZ9kBupePUfLH7R2tMsbshGc1HWvMUU) |
-| hunt 0: bob claim | 3,046.636363… CAL | [9UuJfqdS…](https://testnet.nearblocks.io/txns/9UuJfqdS5etoVVsfNVMxXu1xmnHEqJEbyUPugmqK85ap) |
-| hunt 0: carol claim | 4,062.181818… CAL | [ncSb8TiB…](https://testnet.nearblocks.io/txns/ncSb8TiBdeHwX9bc5dzwj5uuXssktPtXWdQfNqUGSFM) |
-| hunt 1: alice commit 200 CAL (bar 0/1100 CAL, fee 3.8182 CAL) | 200 CAL locked | [2EqzLwLo…](https://testnet.nearblocks.io/txns/2EqzLwLofsF33gYoGDKQDCoLbUXGksrSHdDPocfz5M8M) |
-| hunt 1: holder ft_transfer 50 CAL to the contract (a plain transfer) | – | [7inQaidM…](https://testnet.nearblocks.io/txns/7inQaidML8VVMv47RYSYSqhzyz3No2SXwqD8dBZxF8Ww) |
-| hunt 1: resolve (sweeps the 50 CAL into the hoard) | `Escaped` | [Anifpa1E…](https://testnet.nearblocks.io/txns/Anifpa1EbL9py728CSBEN53MHVTN9uUCGin34jmFDFVh) |
-| hunt 1: alice claim | 180 CAL | [AVPa7bJD…](https://testnet.nearblocks.io/txns/AVPa7bJDLt6FePaS5ZU73Ufo3ZxfHzxDsHTqdbktjUGn) |
-| hunt 2: bob commit 500 CAL (bar 0/770 CAL, fee 21.2338 CAL) | 500 CAL locked | [3W1XoS84…](https://testnet.nearblocks.io/txns/3W1XoS84eBf5x7zx2KYC1e7wntvNAonXXi91gtg6cZ7x) |
-| hunt 2: carol commit 300 CAL (bar 500/770 CAL, fee 28.2662 CAL) | 300 CAL locked | [FjXg7PCw…](https://testnet.nearblocks.io/txns/FjXg7PCwXfs9jyZ7V7yvmof1LCJjsiZETjGJv7vwX85g) |
-| hunt 2: resolve | `Slain` | [3hn2aVcR…](https://testnet.nearblocks.io/txns/3hn2aVcRqLC5vEfs2Xpp1BRuGJtjsohxEHMvqwYdanNe) |
-| hunt 2: bob claim | 564.573863… CAL | [2uq1Sj2f…](https://testnet.nearblocks.io/txns/2uq1Sj2fQ1C9UfyP1w6W2QBgKSYbdAtKGMDyiAdwJ2xY) |
-| hunt 2: carol claim | 338.744318… CAL | [DfrNzU3m…](https://testnet.nearblocks.io/txns/DfrNzU3m78B1DBKj2jHZU1vUL1FeK7BUHESegcxVFj7y) |
+| create + deploy + `new` in one transaction | – | [AaW9hPJH…](https://testnet.nearblocks.io/txns/AaW9hPJHJVAEDzr48EyY4bSPvgm8KgL3VyNcM9w9k6pm) |
+| storage_deposit alice.calydon-v12-1794130347.testnet | registered | [6p2QUnKw…](https://testnet.nearblocks.io/txns/6p2QUnKwBdEguMjqfhhxaJf6Z6jRHaGLgkpkxCRebPBb) |
+| starter alice.calydon-v12-1794130347.testnet | 1,000 CAL | [4qYysLqm…](https://testnet.nearblocks.io/txns/4qYysLqmuMJaf51Z6iNAedTrKzZ48oTwLFgb7KWvkXER) |
+| storage_deposit bob.calydon-v12-1794130347.testnet | registered | [Eakt4mcj…](https://testnet.nearblocks.io/txns/Eakt4mcjDPdCakbjaxvE957jtoEHK8JqF66Q99woHVdF) |
+| starter bob.calydon-v12-1794130347.testnet | 1,000 CAL | [BHJXkanq…](https://testnet.nearblocks.io/txns/BHJXkanqc4S9zEWffpYj2uhM2LdTxs7gFt8cU4hx78h5) |
+| storage_deposit carol.calydon-v12-1794130347.testnet | registered | [BNP47t4x…](https://testnet.nearblocks.io/txns/BNP47t4xVFcGRn8zcUb4Y2WNcXKKwA2onSbbqkoZwmAj) |
+| starter carol.calydon-v12-1794130347.testnet | 1,000 CAL | [2s96Pe4B…](https://testnet.nearblocks.io/txns/2s96Pe4B2m38BrGnpkJF4sqmYpe47kZ33GTEn2PXqRDv) |
+| hunt 0: alice commit 400 CAL (bar 0/1000 CAL, step 1, fee 4.0000 CAL) | 400 CAL locked | [BCrY8Fm2…](https://testnet.nearblocks.io/txns/BCrY8Fm2HSaubENV6QSG7sj1PhEF5ZgedFRN5dfDmZYn) |
+| hunt 0: bob commit 300 CAL (bar 400/1000 CAL, step 1, fee 3.0000 CAL) | 300 CAL locked | [EV9Vp21J…](https://testnet.nearblocks.io/txns/EV9Vp21J9PWcpqHEXw9NPkE87vRvzfPve6Mo3XnzSvkW) |
+| hunt 0: carol commit 400 CAL (bar 700/1000 CAL, step 1, fee 4.0000 CAL) | 400 CAL locked | [GgD5F8dR…](https://testnet.nearblocks.io/txns/GgD5F8dRSsg5omVyui4iEcw4R8GM4r1ZrNG38PxAp67o) |
+| hunt 0: resolve | `Slain` | [941WAYTf…](https://testnet.nearblocks.io/txns/941WAYTfqiQkdAvETDQpMpekyu3HnhB8dhESgi2bBPxU) |
+| hunt 0: alice claim | 4,040.363636… CAL | [6zstDU7X…](https://testnet.nearblocks.io/txns/6zstDU7XLNwf5bvpu8pYB2JMP2vCeuChtmhrFW2veB5U) |
+| hunt 0: bob claim | 3,030.272727… CAL | [3KhUmKde…](https://testnet.nearblocks.io/txns/3KhUmKdepVVBJLZopC2TNektAiCEeZ1stYUXwvcFUmyR) |
+| hunt 0: carol claim | 4,040.363636… CAL | [5zKA173M…](https://testnet.nearblocks.io/txns/5zKA173MZJYuBUzrhuQkLzSWBhgkGbPXcR4mzJN7WxqR) |
+| hunt 1: alice commit 200 CAL (bar 0/1100 CAL, step 1, fee 2.0000 CAL) | 200 CAL locked | [GN8oXgyo…](https://testnet.nearblocks.io/txns/GN8oXgyoPvbZce7zujvN2gXnzeoL2fCfSjiYzVymiHMY) |
+| hunt 1: holder ft_transfer 50 CAL to the contract | refused: `RECEIVER_IS_CONTRACT` | [5ry7JrkV…](https://testnet.nearblocks.io/txns/5ry7JrkVZe4eoqwHSuaVX2qAy2dnEMqbeg4Gywh9ycYd) |
+| hunt 1: holder ft_transfer_call 50 CAL to the contract | refused: `RECEIVER_IS_CONTRACT` | [Hr4YDos6…](https://testnet.nearblocks.io/txns/Hr4YDos6J46qwVmaBJgv4kALsZzAmAaztPLfZpFfdgge) |
+| hunt 1: resolve | `Escaped` | [CByFmeTF…](https://testnet.nearblocks.io/txns/CByFmeTF2tpoCthMWfJb7vXMnk2PEFb7XsWNC5LD42CE) |
+| hunt 1: alice claim | 180 CAL | [6e5UqFHp…](https://testnet.nearblocks.io/txns/6e5UqFHpKedovvLZ9G1RLS9s5h9myLLPkEou7NYrodwc) |
+| hunt 2: bob commit 500 CAL (bar 0/770 CAL, step 1, fee 5.0000 CAL) | 500 CAL locked | [BLDpmi7R…](https://testnet.nearblocks.io/txns/BLDpmi7RkEJ3jviZJECZMbGKdySpUaFu22BmpE32XBxe) |
+| hunt 2: carol commit 300 CAL (bar 500/770 CAL, step 1, fee 3.0000 CAL) | 300 CAL locked | [2KsaeP2u…](https://testnet.nearblocks.io/txns/2KsaeP2uqEeUv6CepaKnenUuvm4gDbu8YtAjzQZK6PPE) |
+| hunt 2: resolve | `Slain` | [4p1hZF7n…](https://testnet.nearblocks.io/txns/4p1hZF7nU9VJsgnaK1wDzf23t4WYgL8GMmetzyx4Dqmw) |
+| hunt 2: bob claim | 506.25 CAL | [FQPehYuz…](https://testnet.nearblocks.io/txns/FQPehYuzV5he1vigPBpFgpbcymSJnRhetfYh5VQC9ZEr) |
+| hunt 2: carol claim | 303.75 CAL | [9kawgmoQ…](https://testnet.nearblocks.io/txns/9kawgmoQ5tcBCmk6KQ22z7HZRmHqbxcpvG23RwcvR1xf) |
 
-What the numbers show: carol's 400 CAL went in last, partly past the HP, and paid 39.5 CAL in fees
-against alice's 12 CAL for the same stake into an empty bar. All three landed in the same rule-B
-step, so their shares of the 10,071 CAL pot (launch hoard 10,000 + 71 in fees) are pro rata. In
-hunt 1 the holder sent 50 CAL to the contract with a plain `ft_transfer`; `totals` showed it as a
-50 CAL surplus until `resolve` swept it into the hoard (`sweep` event), so hunt 2's pot (103.318181
-CAL) is the 50 CAL plus hunt 1's and hunt 2's fees.
+What the numbers show: every commit in this run landed in step 1, so each paid the flat 1% whatever
+the fill: carol's 400 CAL into a bar already 70% full paid 4 CAL, the same as alice's 400 CAL into an
+empty bar. All three landed in the same rule-B step, so their shares of the 10,011 CAL pot (launch
+hoard 10,000 + 11 in fees) are pro rata. In hunt 1 the holder tried to send 50 CAL to the contract,
+once with `ft_transfer` and once with `ft_transfer_call`; both were refused with
+`RECEIVER_IS_CONTRACT`, and `totals` shows held = hoard + locked + unclaimed + starter bucket exactly.
+Hunt 2's pot (10 CAL) is hunt 1's and hunt 2's fees. A step-2 commit, which pays the fill fee, is in
+the browser session below.
 
 ## 3. Play in a browser → sign in, commit, resolve and claim from the page
 
@@ -215,7 +220,7 @@ npm run page
 Calydon page: http://127.0.0.1:8494/status/  (Ctrl-C to stop)
 ```
 
-Open that address. `status/` is a static page (HTML, one script, and the pinned wallet bundle in
+Open that address (`PORT=<n> npm run page` serves on another port). `status/` is a static page (HTML, one script, and the pinned wallet bundle in
 `status/vendor/`); `npm run page` only serves it and `testnet/run.json` from this machine, and the
 same files can be hosted as they are. Nothing is hosted by this repository. The page reads the
 public testnet RPC every 4 seconds; `?contract=<id>` shows another instance (for example one you
@@ -230,37 +235,45 @@ wallet window to approve; so does claim.
 
 **What the page does, signed in:** your CAL balance; a `storage_deposit` button until you are
 registered; `Get starter CAL` until you took it; `Commit` with a live preview of what you pay (stake
-+ the exact entry fee, integrated over the fill your stake covers), the NEAR attached, your weight
++ the exact entry fee: the flat 1% while the hunt is in step 1, otherwise integrated over the fill your
+stake covers; during step 1 also what the commit pays and weighs if it lands after step 1, since a
+wallet approval can take a minute), the NEAR attached, your weight
 (stake × steps left), the bar after, and your claim if the hunt is slain or escaped as things stand;
-`Resolve this hunt` once the deadline has passed; and *Your entries* with what each claim pays and a
+`Resolve this hunt` once the deadline has passed; how many of this hunt's 20 starters are left; and *Your entries* with what each claim pays and a
 `Claim` button. The deadline line says how many blocks are left, which step a commit lands in and
 until which block, and turns red once commits are refused. Signed out, it shows the hunt, HP bar,
 hoard, supply, burned CAL, the starter bucket, the access keys on the contract (0) and the hunt log
-with each hunt's First Spear.
+with each hunt's First Spear; a hunt past its deadline that nobody resolved yet shows as
+"closed (unresolved)".
 
-**One recorded session** ([docs/browser/](docs/browser/), 2026-11-08 17:03–17:14 KST): a fresh
-testnet account `player2.calydon-v11-1794122775.testnet`, imported into Intear Wallet, signs in on the
-page, runs `storage_deposit` ([4JDGGonj…](https://testnet.nearblocks.io/txns/4JDGGonjH4dWUZS2GJR3YjqW81MWFGPwtLPYWvjxWEqa))
-and takes its starter ([6ryG5NSj…](https://testnet.nearblocks.io/txns/6ryG5NSjw21uCvDaGADaVxZu52yy6tZExrWxsw5jAiue)),
-resolves the empty hunt 5 ([J76Hf4aL…](https://testnet.nearblocks.io/txns/J76Hf4aLms5S31AxeQ95uwQWeGY9qL5TqKmpurBmxhK6)),
-commits 600 CAL into hunt 6 (preview: pay 643.1733 CAL = stake 600 + entry fee 43.1733, weight 600 × 4,
-claim 643.1733 CAL if slain and nobody else commits;
-[Hr4ftz3t…](https://testnet.nearblocks.io/txns/Hr4ftz3tj8LJj7cVyHZ6zigSqqLZb3cCbBf3SHDiiDJ5)),
-waits for the deadline, resolves hunt 6 (`Slain`, it is First Spear;
-[6S1NvhGb…](https://testnet.nearblocks.io/txns/6S1NvhGbdkhVM8nVtJAfczBAEyAy1ayR1tk5pJ5gLeqt)), and claims
-643.1733 CAL plus the 0.005 NEAR entry deposit back
-([B4rnod1h…](https://testnet.nearblocks.io/txns/B4rnod1h47Cf4bHhmHGRrUeY1XQVHQBY1sZhFuBe4L8A)).
-Each step is a screenshot of the page and of the wallet window, in order. It was driven by
+**One recorded session** ([docs/browser/](docs/browser/), 2026-11-08 18:43–18:54 KST, v1.2 instance): a
+fresh testnet account `player.calydon-v12-1794130347.testnet` (2 NEAR from the launch holder), imported
+into Intear Wallet, signs in on the page, runs `storage_deposit`
+([2po2EF9B…](https://testnet.nearblocks.io/txns/2po2EF9BfpdWJmzB7M6tguxvxMVcY6buS8gMeUGYL7N3)) and takes its starter
+([6crvHApu…](https://testnet.nearblocks.io/txns/6crvHApuXr9ne9Jj377YiYrVnTw5Ybmedu1rX2tAhvTB)). Hunt 3 is past its deadline and
+unresolved, so the hunt log shows it as "closed (unresolved)"; the account resolves it (empty,
+`Escaped`; [HAoP3YhS…](https://testnet.nearblocks.io/txns/HAoP3YhSQ2ZeVnFFgZPqLy1vfBVHGXvkUEwxiYR6ic6S)) and commits 600 CAL into
+hunt 4 ([JDRQT8bx…](https://testnet.nearblocks.io/txns/JDRQT8bxECcuchL8t2BUdVwyroXyc1pU721n7x56MZh)). The preview was taken in step 1
+(41 blocks left in it: pay 606 CAL, weight 600 × 4); the wallet approval took longer than that, so the
+commit landed in step 2 and paid the step-2 fee: 36.355 CAL (1% on all 600 = 6, plus 10% × the average fill 0.5
+on the 592.9 CAL up to the HP = 29.645, plus 10% on the 7.1 CAL past it = 0.71), weight 600 × 3 = 1,800, as *Your entries* shows. After the deadline
+it resolves hunt 4 (`Slain`, it is First Spear;
+[DcxXr5Gt…](https://testnet.nearblocks.io/txns/DcxXr5GtduTMZ1MTg6Mea4qAP9PuHWEYTZwLAFdqeaJW)) and claims 636.355 CAL plus the 0.005
+NEAR entry deposit back ([5QWQmVZc…](https://testnet.nearblocks.io/txns/5QWQmVZcEkWxnkVaLS2dNvKxz4TGvC4DH2LuUxkr8Byh)); its balance is
+back to 1,000 CAL. The last screenshot is the preview at the start of hunt 6 (after resolving the
+empty hunt 5, [BF4kkLaG…](https://testnet.nearblocks.io/txns/BF4kkLaGHBxQ1cmUpTufs5gFu9Unkj1FozeitdkeTqNH)), with the row the page
+gained after this commit: what the same 600 CAL pays if it lands after step 1. Each step is a
+screenshot of the page and of the wallet window, in order. It was driven by
 `scripts/browser-session.mjs` (Playwright; not a dependency of this repository).
 
-| Signed in | Commit preview | Claimable |
+| Closed, not yet resolved | Commit preview in step 1 | Claimable |
 |---|---|---|
-| ![](docs/browser/03-signed-in.png) | ![](docs/browser/10-commit-preview.png) | ![](docs/browser/16-claimable.png) |
+| ![](docs/browser/08-closed-unresolved.png) | ![](docs/browser/19-preview-step1-hunt-6.png) | ![](docs/browser/16-claimable.png) |
 
 ## 4. Play on testnet from the command line → see your commit, the resolve and your claim as transactions
 
 ```sh
-npm run hunt -- launch                     # your own instance, created like the v1.1 one
+npm run hunt -- launch                     # your own instance, created like the v1.2 one
 npm run hunt -- commit 600 --as alice
 npm run hunt -- status
 npm run hunt -- resolve                    # after the deadline; anyone may
@@ -275,73 +288,75 @@ account never has a key), and creates two hunters, `alice` and `bob`, who regist
 never printed). A hunt lasts 600 blocks (about 6 minutes on testnet; `--hunt-blocks N` changes it).
 Each command compiles once, then took us 30–55 seconds per call against the public RPC; a commit that
 lands after the deadline is refused with `HUNT_CLOSED` and nothing moves. Without a `launch`, the
-commands use the recorded v1.1 instance, where any account can take a starter and play.
+commands use the recorded v1.2 instance, where any account can take a starter and play (at most 20
+starters per hunt).
 
-Output from one session on 2026-11-08 (16:57 KST), launched with `--hunt-blocks 200`:
+Output from one session on 2026-11-08 (18:56–19:05 KST, v1.2 code), launched with `--hunt-blocks 200`:
 
 ```text
 $ npm run hunt -- launch --hunt-blocks 200
-launched cal.calydon-play-1794124670.testnet (no access key); holder calydon-play-1794124670.testnet; alice and bob took 1000-CAL starters
-contract cal.calydon-play-1794124670.testnet (rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 / x0.7)
+launched cal.calydon-play-1794131780.testnet (no access key); holder calydon-play-1794131780.testnet; alice and bob took 1000-CAL starters
+contract cal.calydon-play-1794131780.testnet (rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 / x0.7)
 hunt 0: [....................] 0 / 1000 CAL committed by 0 hunter(s)
-  open: 171 blocks left (deadline 276748416); the next 1 CAL committed pays 0.01005 CAL fee (a larger stake pays the fee integrated over the fill it covers)
+  open: 173 blocks left (deadline 276760457); step 1 until block 276760307: every commit pays the flat 0.01 CAL per CAL fee, in any order
 hoard 10000 CAL · supply 1000000 CAL · burned 0 CAL · unclaimed 0 CAL · starter bucket 978000 CAL
 
 $ npm run hunt -- commit 600 --as alice
-alice.calydon-play-1794124670.testnet committed 600 CAL
-  https://testnet.nearblocks.io/txns/91FmcjbPma59j8ng6YXfY3GFAGDfJCAmHMjbDokMWYtt
+alice.calydon-play-1794131780.testnet committed 600 CAL
+  https://testnet.nearblocks.io/txns/2NrrosN5vWkEWBaUuiG1CRKvxPH9rM1zEf7iK1hVan63
   locked 600 CAL
-contract cal.calydon-play-1794124670.testnet (rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 / x0.7)
+contract cal.calydon-play-1794131780.testnet (rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 / x0.7)
 hunt 0: [############........] 600 / 1000 CAL committed by 1 hunter(s)
-  open: 102 blocks left (deadline 276748416); the next 1 CAL committed pays 0.07005 CAL fee (a larger stake pays the fee integrated over the fill it covers)
-hoard 10024 CAL · supply 1000000 CAL · burned 0 CAL · unclaimed 0 CAL · starter bucket 978000 CAL
+  open: 165 blocks left (deadline 276760457); step 1 until block 276760307: every commit pays the flat 0.01 CAL per CAL fee, in any order
+hoard 10006 CAL · supply 1000000 CAL · burned 0 CAL · unclaimed 0 CAL · starter bucket 978000 CAL
 
 $ npm run hunt -- commit 500 --as bob
-bob.calydon-play-1794124670.testnet committed 500 CAL
-  https://testnet.nearblocks.io/txns/D816us4ofyDoNMPGFgdYjsui4qiJSSNZbRKmNhxUvvyY
+bob.calydon-play-1794131780.testnet committed 500 CAL
+  https://testnet.nearblocks.io/txns/5T4pBgzoDvEqE9ag8aK3BDVstDZnysjCXeyreTMuP4gs
   locked 500 CAL
-contract cal.calydon-play-1794124670.testnet (rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 / x0.7)
+contract cal.calydon-play-1794131780.testnet (rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 / x0.7)
 hunt 0: [####################] 1100 / 1000 CAL committed by 2 hunter(s)
-  open: 34 blocks left (deadline 276748416); the next 1 CAL committed pays 0.11 CAL fee (a larger stake pays the fee integrated over the fill it covers)
-hoard 10071 CAL · supply 1000000 CAL · burned 0 CAL · unclaimed 0 CAL · starter bucket 978000 CAL
+  open: 157 blocks left (deadline 276760457); step 1 until block 276760307: every commit pays the flat 0.01 CAL per CAL fee, in any order
+hoard 10011 CAL · supply 1000000 CAL · burned 0 CAL · unclaimed 0 CAL · starter bucket 978000 CAL
 
 $ npm run hunt -- status
-contract cal.calydon-play-1794124670.testnet (rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 / x0.7)
+contract cal.calydon-play-1794131780.testnet (rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 / x0.7)
 hunt 0: [####################] 1100 / 1000 CAL committed by 2 hunter(s)
-  deadline 276748416 passed: `npm run hunt -- resolve` settles it (will be Slain)
-hoard 10071 CAL · supply 1000000 CAL · burned 0 CAL · unclaimed 0 CAL · starter bucket 978000 CAL
+  deadline 276760457 passed: `npm run hunt -- resolve` settles it (will be Slain)
+hoard 10011 CAL · supply 1000000 CAL · burned 0 CAL · unclaimed 0 CAL · starter bucket 978000 CAL
 
 $ npm run hunt -- resolve
-hunt 0 resolved by calydon-play-1794124670.testnet
-  https://testnet.nearblocks.io/txns/E6rrv2tmN7xGnjMkecKJvDBJNPXX8zWcvYRiBaW4Dsma
+hunt 0 resolved by calydon-play-1794131780.testnet
+  https://testnet.nearblocks.io/txns/3EYEjc1g5xWz6xATEp3YKQnxEn3Kg2Ra85EehCwJ4xz2
   outcome "Slain"
-contract cal.calydon-play-1794124670.testnet (rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 / x0.7)
+contract cal.calydon-play-1794131780.testnet (rule EarlyWeight, tribute 100 bps + fill fee up to 1000 bps, burn 1000 bps, HP x1.1 / x0.7)
 hunt 1: [....................] 0 / 1100 CAL committed by 0 hunter(s)
-  open: 198 blocks left (deadline 276748729); the next 1 CAL committed pays 0.010045454545454546 CAL fee (a larger stake pays the fee integrated over the fill it covers)
-hoard 0 CAL · supply 1000000 CAL · burned 0 CAL · unclaimed 11171 CAL · starter bucket 978000 CAL
+  open: 199 blocks left (deadline 276760678); step 1 until block 276760528: every commit pays the flat 0.01 CAL per CAL fee, in any order
+hoard 0 CAL · supply 1000000 CAL · burned 0 CAL · unclaimed 11111 CAL · starter bucket 978000 CAL
 
 $ npm run hunt -- claim 0 --as alice
-alice.calydon-play-1794124670.testnet claimed hunt 0
-  https://testnet.nearblocks.io/txns/BvQnGxUGFQqbXo9wxb2bDPKjMWU2fLC64XZXAPb8tzYX
-  paid 8481.65217391304347826 CAL; balance now 8857.65217391304347826 CAL
+alice.calydon-play-1794131780.testnet claimed hunt 0
+  https://testnet.nearblocks.io/txns/9FXUg8Kfk8XnD4EATG4r1sS8HMD4Bt6NL2UTMqwBm6Vh
+  paid 6060.545454545454545454 CAL; balance now 6454.545454545454545454 CAL
 
 $ npm run hunt -- claim 0 --as bob
-bob.calydon-play-1794124670.testnet claimed hunt 0
-  https://testnet.nearblocks.io/txns/HuHvbjQ92PM9avwGBa3PrjgKFpjhJJTFYXzJDVwtvb1B
-  paid 2689.347826086956521739 CAL; balance now 3142.347826086956521739 CAL
+bob.calydon-play-1794131780.testnet claimed hunt 0
+  https://testnet.nearblocks.io/txns/2U6YXFRzZ2K3EjGzeJGVVp8TT1uw3S978okQkNdn9cma
+  paid 5050.454545454545454545 CAL; balance now 5545.454545454545454545 CAL
 ```
 
-The pot was the 10,000 CAL launch hoard plus the two fees (24 + 47). Alice's commit landed with 3 of
-4 steps left (weight 600 × 3 = 1,800) and bob's with 1 (500 × 1 = 500), so alice got 600 + 10,071 ×
-1,800 / 2,300 and bob 500 + 10,071 × 500 / 2,300, rounded down. Each claim also sent back the
+Both commits landed in step 1 (4 of 4 steps left), so each paid the flat 1% (6 and 5 CAL), although
+bob's 500 CAL went into a bar already 60% full. The pot was the 10,000 CAL launch hoard plus those
+fees, 10,011 CAL; with weights 600 × 4 = 2,400 and 500 × 4 = 2,000, alice got 600 + 10,011 × 2,400 /
+4,400 and bob 500 + 10,011 × 2,000 / 4,400, rounded down. Each claim also sent back the
 0.005 NEAR its first commit attached.
 
 ## 5. Re-run the simulation → see MECHANIC.md's tables
 
 ```sh
-npm run simulate -- --seed 494     # about 25 minutes (three runs in parallel on an Apple Silicon Mac); writes sim/seed-494-hp300.json
+npm run simulate -- --seed 494     # about 17–18 minutes (three runs in parallel on an Apple Silicon Mac); writes sim/seed-494-hp300.json
 npm run sim-tables                 # prints MECHANIC.md §3's tables from the files in sim/
-npm run sim-converge               # 10 generations of 20 hunts whose strategy mix follows the money (about 55 minutes)
+npm run sim-converge               # 10 generations of 20 hunts whose strategy mix follows the money (about 35 minutes)
 ```
 
 300 hunters with seven fixed strategies play 60 hunts against the committed `res/calydon.wasm` in a
@@ -352,32 +367,34 @@ every final balance is compared with an independent computation in `examples/sim
 Output of the run committed in `sim/`:
 
 ```text
-Calydon simulation (v1.1): seed 494, 300 hunters, 60 hunts, first HP 3% of supply, HP x1.1/x0.7, burn 10%, launch hoard 1%, wasm 0f0b8ce7b02ca03d1edf1d4e0053a198f880cd1131e8dbaf288a0594ee15754d
+Calydon simulation (v1.2): seed 494, 300 hunters, 60 hunts, first HP 3% of supply, HP x1.1/x0.7, burn 10%, launch hoard 1%, wasm 3f81cbfd5022cd46d1dde89019914b958c449f68646f1525f0592d9deff4e3c0
 
-Rule B (early-commit weighting, launch rule): kill rate 81.67% (49/60), supply 100000000 -> 95859565 CAL
+Rule B (early-commit weighting, launch rule): kill rate 81.67% (49/60), supply 100000000 -> 96044868 CAL
   strategy                     hunters  joins  net % start  net/100 stk   supply share
-  early committer                   95   3709         9.0%          1.0          13.7%
-  threshold watcher                 95   5067      -41.23%        -4.25        -38.69%
-  quitter                           48   1374         2.0%         0.32          6.41%
-  first mover (round 1, lands first)      47   1784       40.61%         4.09         46.68%
-  late whale (wait-and-fill)         7     28      -15.69%        -7.51        -12.05%
-  solo whale                         4     10        3.21%         1.31          7.67%
-  split whale                        4      8        3.05%         1.55           7.5%
+  early committer                   95   3709        11.8%         1.26         16.41%
+  threshold watcher                 95   5057      -59.43%         -7.3        -57.76%
+  quitter                           48   1294        3.01%         0.49          7.26%
+  first mover (round 1, lands first)      47   1784       11.22%         1.28          15.8%
+  late whale (wait-and-fill)         7     14       -9.71%        -7.77         -5.99%
+  solo whale                         4     26       22.34%          2.7         27.38%
+  split whale                        4      8        6.36%         2.81         10.74%
 
-
-Rule A (HP cap): kill rate 81.67% (49/60), supply 100000000 -> 96255120 CAL
+Rule A (HP cap): kill rate 81.67% (49/60), supply 100000000 -> 96125331 CAL
 ...
-Written: sim/seed-494-hp300.json (1515.192121667s)
+Written: sim/seed-494-hp300.json (1015.453786875s)
 ```
 
 The *first mover* is the best response named in the v1.1 brief ("commit in round 1 as early as
-possible"): its round-1 commits are sent before everyone else's, so they land first. It was on top
-in every launch cell; MECHANIC.md §3.1 has 5 seeds with mean ± sd, and §3.2 what the strategy mix
-converges to when each generation's mix follows the previous generation's results.
+possible"): its round-1 commits are sent before everyone else's, so they land first. On v1.1 it was on
+top in every launch cell; on v1.2, where every round-1 (step-1) commit pays the same flat 1%, it was
+above the early committers in 1 of 5 seeds and on top in none, while a solo whale that fills the HP in
+round 1 was on top in 3 of 5. MECHANIC.md §3.1 has the 5 seeds with mean ± sd, §3.2 what the strategy
+mix converges to when each generation's mix follows the previous generation's results, and §5 the
+limits.
 
 A re-run gives different numbers: inside a round the commits are sent together, the sandbox picks
-the order they land in (first movers' commits are sent first), and the fee depends on that order.
-Other options: `--hp0-bps`, `--burn-bps`, `--hoard-bps`, `--hunters`, `--hunts`, `--mix`,
+the order they land in (first movers' commits are sent first), and from step 2 on the fee depends on
+that order. Other options: `--hp0-bps`, `--burn-bps`, `--hoard-bps`, `--hunters`, `--hunts`, `--mix`,
 `--set fill_fee_bps=0` (the same wasm without the fill fee), `--out <file>`.
 
 ## 6. Rebuild the wasm → see the same bytes as on testnet
@@ -418,6 +435,7 @@ Source, committed wasm and deployed code are the same bytes.
 | `src/tests.rs` | Unit tests, including the 20,000-case splitting property test. |
 | `tests/verify.rs` | `npm run verify`: sandbox scenarios against `res/calydon.wasm`. |
 | `tests/testnet.rs` | `npm run execute-testnet`: the recorded testnet run. |
+| `tests/repro_v11.rs` | The v1.1 accounting gap reproduced against the v1.1 wasm (ignored; command in VERIFY.md §A). |
 | `tests/common/mod.rs` | Shared helpers; `launch_config()` is the one place the launch values are written; `deploy()` is the one-transaction create + deploy + `new`. |
 | `examples/simulate.rs` | `npm run simulate`, with its independent oracle (`oracle_fee`, `oracle_share`, `oracle_burn`). |
 | `examples/hunt.rs` | `npm run hunt`. |
@@ -425,7 +443,7 @@ Source, committed wasm and deployed code are the same bytes.
 | `scripts/` | Reproducible build, `observe-testnet`, `sim-tables`, `sim-converge`, the page server, `browser-session.mjs` (how `docs/browser/` was recorded), RPC helpers. |
 | `res/calydon.wasm` | The reproducible build deployed on testnet, and its sha256. |
 | `sim/` | Committed simulation results (`sim/converge/`: the replicator generations). |
-| `testnet/run.json`, `testnet/v1.0/run.json` | The v1.1 record and the superseded v1.0 record. |
+| `testnet/run.json`, `testnet/v1.1/run.json`, `testnet/v1.0/run.json` | The v1.2 record and the superseded v1.1 and v1.0 records. |
 | `docs/browser/` | The browser session, one screenshot per step. |
 | `docs/journey.md` | Dated decisions. `docs/day1*.md`: the overnight measurements (Korean). |
 
@@ -436,10 +454,10 @@ Libraries: near-sdk 5.30.1 and near-contract-standards 5.30.1 (contract); near-w
 
 ## Limits
 
-The watcher strategy loses by design; committing first in a hunt pays most (the first mover was on top
-in every simulated launch cell); a whale that fills the whole HP in round 1 is not priced out; the
+The watcher strategy loses by design; a whale that fills the whole HP in step 1 is not priced out, and
+the flat step-1 fee made that cheaper (a solo whale was on top in 3 of 5 simulated launch seeds); the
 simulated strategies are fixed rules; re-runs vary and MECHANIC.md §3.1 has 5 seeds, not 10; the starter is
-demo-level (more accounts, more starters); the splitting statements are integer arithmetic about stakes, not about who owns which
+demo-level (20 per hunt paces it; more accounts still get more starters over time); the splitting statements are integer arithmetic about stakes, not about who owns which
 account; nothing here says anything about fun or
 price. Details: [MECHANIC.md §5](MECHANIC.md#5-limits-stated-plainly). CAL exists on testnet only.
 
