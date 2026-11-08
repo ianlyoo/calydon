@@ -1,0 +1,826 @@
+{
+  "network": "testnet",
+  "release": "v1.2",
+  "recorded_at_unix": 1794130911,
+  "contract": "cal.calydon-v12-1794130347.testnet",
+  "holder": "calydon-v12-1794130347.testnet",
+  "hunters": [
+    "alice.calydon-v12-1794130347.testnet",
+    "bob.calydon-v12-1794130347.testnet",
+    "carol.calydon-v12-1794130347.testnet"
+  ],
+  "wasm_sha256": "3f81cbfd5022cd46d1dde89019914b958c449f68646f1525f0592d9deff4e3c0",
+  "launch": {
+    "holder_supply": "10000000000000000000000",
+    "hoard": "10000000000000000000000",
+    "starter_bucket": "980000000000000000000000",
+    "config": {
+      "name": "Calydon",
+      "symbol": "CAL",
+      "decimals": 18,
+      "rule": "EarlyWeight",
+      "first_hp": "1000000000000000000000",
+      "hunt_blocks": 300,
+      "step_blocks": 75,
+      "tribute_bps": 100,
+      "fill_fee_bps": 1000,
+      "burn_bps": 1000,
+      "hp_up_bps": 11000,
+      "hp_down_bps": 7000,
+      "min_stake": "1000000000000000000",
+      "entry_deposit": "5000000000000000000000",
+      "record_deposit": "5000000000000000000000",
+      "starter_amount": "1000000000000000000000",
+      "starters_per_hunt": 20
+    }
+  },
+  "steps": [
+    {
+      "step": "create + deploy + new in one transaction (the contract account never has an access key)",
+      "tx": "AaW9hPJHJVAEDzr48EyY4bSPvgm8KgL3VyNcM9w9k6pm",
+      "link": "https://testnet.nearblocks.io/txns/AaW9hPJHJVAEDzr48EyY4bSPvgm8KgL3VyNcM9w9k6pm",
+      "signer": "calydon-v12-1794130347.testnet",
+      "returned": null,
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_mint",
+          "data": [
+            {
+              "owner_id": "calydon-v12-1794130347.testnet",
+              "amount": "10000000000000000000000",
+              "memo": "launch holder"
+            },
+            {
+              "owner_id": "cal.calydon-v12-1794130347.testnet",
+              "amount": "10000000000000000000000",
+              "memo": "launch hoard"
+            },
+            {
+              "owner_id": "cal.calydon-v12-1794130347.testnet",
+              "amount": "980000000000000000000000",
+              "memo": "starter bucket"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "open",
+          "data": [
+            {
+              "hunt": 0,
+              "hp": "1000000000000000000000",
+              "deadline": 276758112
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "storage_deposit alice.calydon-v12-1794130347.testnet",
+      "tx": "6p2QUnKwBdEguMjqfhhxaJf6Z6jRHaGLgkpkxCRebPBb",
+      "link": "https://testnet.nearblocks.io/txns/6p2QUnKwBdEguMjqfhhxaJf6Z6jRHaGLgkpkxCRebPBb",
+      "signer": "alice.calydon-v12-1794130347.testnet",
+      "returned": {
+        "total": "1250000000000000000000",
+        "available": "0"
+      },
+      "events": []
+    },
+    {
+      "step": "starter alice.calydon-v12-1794130347.testnet",
+      "tx": "4qYysLqmuMJaf51Z6iNAedTrKzZ48oTwLFgb7KWvkXER",
+      "link": "https://testnet.nearblocks.io/txns/4qYysLqmuMJaf51Z6iNAedTrKzZ48oTwLFgb7KWvkXER",
+      "signer": "alice.calydon-v12-1794130347.testnet",
+      "returned": "1000000000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "new_owner_id": "alice.calydon-v12-1794130347.testnet",
+              "amount": "1000000000000000000000",
+              "memo": "starter"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "starter",
+          "data": [
+            {
+              "account_id": "alice.calydon-v12-1794130347.testnet",
+              "amount": "1000000000000000000000",
+              "left": "979000000000000000000000",
+              "hunt": 0,
+              "given_this_hunt": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "storage_deposit bob.calydon-v12-1794130347.testnet",
+      "tx": "Eakt4mcjDPdCakbjaxvE957jtoEHK8JqF66Q99woHVdF",
+      "link": "https://testnet.nearblocks.io/txns/Eakt4mcjDPdCakbjaxvE957jtoEHK8JqF66Q99woHVdF",
+      "signer": "bob.calydon-v12-1794130347.testnet",
+      "returned": {
+        "total": "1250000000000000000000",
+        "available": "0"
+      },
+      "events": []
+    },
+    {
+      "step": "starter bob.calydon-v12-1794130347.testnet",
+      "tx": "BHJXkanqc4S9zEWffpYj2uhM2LdTxs7gFt8cU4hx78h5",
+      "link": "https://testnet.nearblocks.io/txns/BHJXkanqc4S9zEWffpYj2uhM2LdTxs7gFt8cU4hx78h5",
+      "signer": "bob.calydon-v12-1794130347.testnet",
+      "returned": "1000000000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "new_owner_id": "bob.calydon-v12-1794130347.testnet",
+              "amount": "1000000000000000000000",
+              "memo": "starter"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "starter",
+          "data": [
+            {
+              "account_id": "bob.calydon-v12-1794130347.testnet",
+              "amount": "1000000000000000000000",
+              "left": "978000000000000000000000",
+              "hunt": 0,
+              "given_this_hunt": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "storage_deposit carol.calydon-v12-1794130347.testnet",
+      "tx": "BNP47t4xVFcGRn8zcUb4Y2WNcXKKwA2onSbbqkoZwmAj",
+      "link": "https://testnet.nearblocks.io/txns/BNP47t4xVFcGRn8zcUb4Y2WNcXKKwA2onSbbqkoZwmAj",
+      "signer": "carol.calydon-v12-1794130347.testnet",
+      "returned": {
+        "total": "1250000000000000000000",
+        "available": "0"
+      },
+      "events": []
+    },
+    {
+      "step": "starter carol.calydon-v12-1794130347.testnet",
+      "tx": "2s96Pe4B2m38BrGnpkJF4sqmYpe47kZ33GTEn2PXqRDv",
+      "link": "https://testnet.nearblocks.io/txns/2s96Pe4B2m38BrGnpkJF4sqmYpe47kZ33GTEn2PXqRDv",
+      "signer": "carol.calydon-v12-1794130347.testnet",
+      "returned": "1000000000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "new_owner_id": "carol.calydon-v12-1794130347.testnet",
+              "amount": "1000000000000000000000",
+              "memo": "starter"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "starter",
+          "data": [
+            {
+              "account_id": "carol.calydon-v12-1794130347.testnet",
+              "amount": "1000000000000000000000",
+              "left": "977000000000000000000000",
+              "hunt": 0,
+              "given_this_hunt": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 0: alice commit 400 CAL (bar 0/1000 CAL, step 1, fee 4.0000 CAL)",
+      "tx": "BCrY8Fm2HSaubENV6QSG7sj1PhEF5ZgedFRN5dfDmZYn",
+      "link": "https://testnet.nearblocks.io/txns/BCrY8Fm2HSaubENV6QSG7sj1PhEF5ZgedFRN5dfDmZYn",
+      "signer": "alice.calydon-v12-1794130347.testnet",
+      "returned": "400000000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "alice.calydon-v12-1794130347.testnet",
+              "new_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "amount": "404000000000000000000",
+              "memo": "commit"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "commit",
+          "data": [
+            {
+              "hunt": 0,
+              "hunter": "alice.calydon-v12-1794130347.testnet",
+              "stake": "400000000000000000000",
+              "fee": "4000000000000000000",
+              "weight": "1600000000000000000000",
+              "committed": "400000000000000000000",
+              "height": 276757860
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 0: bob commit 300 CAL (bar 400/1000 CAL, step 1, fee 3.0000 CAL)",
+      "tx": "EV9Vp21J9PWcpqHEXw9NPkE87vRvzfPve6Mo3XnzSvkW",
+      "link": "https://testnet.nearblocks.io/txns/EV9Vp21J9PWcpqHEXw9NPkE87vRvzfPve6Mo3XnzSvkW",
+      "signer": "bob.calydon-v12-1794130347.testnet",
+      "returned": "300000000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "bob.calydon-v12-1794130347.testnet",
+              "new_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "amount": "303000000000000000000",
+              "memo": "commit"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "commit",
+          "data": [
+            {
+              "hunt": 0,
+              "hunter": "bob.calydon-v12-1794130347.testnet",
+              "stake": "300000000000000000000",
+              "fee": "3000000000000000000",
+              "weight": "1200000000000000000000",
+              "committed": "700000000000000000000",
+              "height": 276757867
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 0: carol commit 400 CAL (bar 700/1000 CAL, step 1, fee 4.0000 CAL)",
+      "tx": "GgD5F8dRSsg5omVyui4iEcw4R8GM4r1ZrNG38PxAp67o",
+      "link": "https://testnet.nearblocks.io/txns/GgD5F8dRSsg5omVyui4iEcw4R8GM4r1ZrNG38PxAp67o",
+      "signer": "carol.calydon-v12-1794130347.testnet",
+      "returned": "400000000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "carol.calydon-v12-1794130347.testnet",
+              "new_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "amount": "404000000000000000000",
+              "memo": "commit"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "commit",
+          "data": [
+            {
+              "hunt": 0,
+              "hunter": "carol.calydon-v12-1794130347.testnet",
+              "stake": "400000000000000000000",
+              "fee": "4000000000000000000",
+              "weight": "1600000000000000000000",
+              "committed": "1100000000000000000000",
+              "height": 276757874
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 0: resolve",
+      "tx": "941WAYTfqiQkdAvETDQpMpekyu3HnhB8dhESgi2bBPxU",
+      "link": "https://testnet.nearblocks.io/txns/941WAYTfqiQkdAvETDQpMpekyu3HnhB8dhESgi2bBPxU",
+      "signer": "calydon-v12-1794130347.testnet",
+      "returned": "Slain",
+      "events": [
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "resolve",
+          "data": [
+            {
+              "hunt": 0,
+              "outcome": "Slain",
+              "hp": "1000000000000000000000",
+              "committed": "1100000000000000000000",
+              "pot": "10011000000000000000000",
+              "next_hp": "1100000000000000000000"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "open",
+          "data": [
+            {
+              "hunt": 1,
+              "hp": "1100000000000000000000",
+              "deadline": 276758421
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 0: alice claim",
+      "tx": "6zstDU7XLNwf5bvpu8pYB2JMP2vCeuChtmhrFW2veB5U",
+      "link": "https://testnet.nearblocks.io/txns/6zstDU7XLNwf5bvpu8pYB2JMP2vCeuChtmhrFW2veB5U",
+      "signer": "alice.calydon-v12-1794130347.testnet",
+      "returned": "4040363636363636363636",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "new_owner_id": "alice.calydon-v12-1794130347.testnet",
+              "amount": "4040363636363636363636",
+              "memo": "claim"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "claim",
+          "data": [
+            {
+              "hunt": 0,
+              "hunter": "alice.calydon-v12-1794130347.testnet",
+              "outcome": "Slain",
+              "paid": "4040363636363636363636",
+              "burned": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 0: bob claim",
+      "tx": "3KhUmKdepVVBJLZopC2TNektAiCEeZ1stYUXwvcFUmyR",
+      "link": "https://testnet.nearblocks.io/txns/3KhUmKdepVVBJLZopC2TNektAiCEeZ1stYUXwvcFUmyR",
+      "signer": "bob.calydon-v12-1794130347.testnet",
+      "returned": "3030272727272727272727",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "new_owner_id": "bob.calydon-v12-1794130347.testnet",
+              "amount": "3030272727272727272727",
+              "memo": "claim"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "claim",
+          "data": [
+            {
+              "hunt": 0,
+              "hunter": "bob.calydon-v12-1794130347.testnet",
+              "outcome": "Slain",
+              "paid": "3030272727272727272727",
+              "burned": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 0: carol claim",
+      "tx": "5zKA173MZJYuBUzrhuQkLzSWBhgkGbPXcR4mzJN7WxqR",
+      "link": "https://testnet.nearblocks.io/txns/5zKA173MZJYuBUzrhuQkLzSWBhgkGbPXcR4mzJN7WxqR",
+      "signer": "carol.calydon-v12-1794130347.testnet",
+      "returned": "4040363636363636363636",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "new_owner_id": "carol.calydon-v12-1794130347.testnet",
+              "amount": "4040363636363636363636",
+              "memo": "claim"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "claim",
+          "data": [
+            {
+              "hunt": 0,
+              "hunter": "carol.calydon-v12-1794130347.testnet",
+              "outcome": "Slain",
+              "paid": "4040363636363636363636",
+              "burned": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 1: alice commit 200 CAL (bar 0/1100 CAL, step 1, fee 2.0000 CAL)",
+      "tx": "GN8oXgyoPvbZce7zujvN2gXnzeoL2fCfSjiYzVymiHMY",
+      "link": "https://testnet.nearblocks.io/txns/GN8oXgyoPvbZce7zujvN2gXnzeoL2fCfSjiYzVymiHMY",
+      "signer": "alice.calydon-v12-1794130347.testnet",
+      "returned": "200000000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "alice.calydon-v12-1794130347.testnet",
+              "new_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "amount": "202000000000000000000",
+              "memo": "commit"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "commit",
+          "data": [
+            {
+              "hunt": 1,
+              "hunter": "alice.calydon-v12-1794130347.testnet",
+              "stake": "200000000000000000000",
+              "fee": "2000000000000000000",
+              "weight": "800000000000000000000",
+              "committed": "200000000000000000000",
+              "height": 276758146
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 1: resolve",
+      "tx": "CByFmeTF2tpoCthMWfJb7vXMnk2PEFb7XsWNC5LD42CE",
+      "link": "https://testnet.nearblocks.io/txns/CByFmeTF2tpoCthMWfJb7vXMnk2PEFb7XsWNC5LD42CE",
+      "signer": "calydon-v12-1794130347.testnet",
+      "returned": "Escaped",
+      "events": [
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "resolve",
+          "data": [
+            {
+              "hunt": 1,
+              "outcome": "Escaped",
+              "hp": "1100000000000000000000",
+              "committed": "200000000000000000000",
+              "pot": "0",
+              "next_hp": "770000000000000000000"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "open",
+          "data": [
+            {
+              "hunt": 2,
+              "hp": "770000000000000000000",
+              "deadline": 276758727
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 1: alice claim",
+      "tx": "6e5UqFHpKedovvLZ9G1RLS9s5h9myLLPkEou7NYrodwc",
+      "link": "https://testnet.nearblocks.io/txns/6e5UqFHpKedovvLZ9G1RLS9s5h9myLLPkEou7NYrodwc",
+      "signer": "alice.calydon-v12-1794130347.testnet",
+      "returned": "180000000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "new_owner_id": "alice.calydon-v12-1794130347.testnet",
+              "amount": "180000000000000000000",
+              "memo": "claim"
+            }
+          ]
+        },
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_burn",
+          "data": [
+            {
+              "owner_id": "cal.calydon-v12-1794130347.testnet",
+              "amount": "20000000000000000000",
+              "memo": "escaped"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "claim",
+          "data": [
+            {
+              "hunt": 1,
+              "hunter": "alice.calydon-v12-1794130347.testnet",
+              "outcome": "Escaped",
+              "paid": "180000000000000000000",
+              "burned": "20000000000000000000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 2: bob commit 500 CAL (bar 0/770 CAL, step 1, fee 5.0000 CAL)",
+      "tx": "BLDpmi7RkEJ3jviZJECZMbGKdySpUaFu22BmpE32XBxe",
+      "link": "https://testnet.nearblocks.io/txns/BLDpmi7RkEJ3jviZJECZMbGKdySpUaFu22BmpE32XBxe",
+      "signer": "bob.calydon-v12-1794130347.testnet",
+      "returned": "500000000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "bob.calydon-v12-1794130347.testnet",
+              "new_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "amount": "505000000000000000000",
+              "memo": "commit"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "commit",
+          "data": [
+            {
+              "hunt": 2,
+              "hunter": "bob.calydon-v12-1794130347.testnet",
+              "stake": "500000000000000000000",
+              "fee": "5000000000000000000",
+              "weight": "2000000000000000000000",
+              "committed": "500000000000000000000",
+              "height": 276758441
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 2: carol commit 300 CAL (bar 500/770 CAL, step 1, fee 3.0000 CAL)",
+      "tx": "2KsaeP2uqEeUv6CepaKnenUuvm4gDbu8YtAjzQZK6PPE",
+      "link": "https://testnet.nearblocks.io/txns/2KsaeP2uqEeUv6CepaKnenUuvm4gDbu8YtAjzQZK6PPE",
+      "signer": "carol.calydon-v12-1794130347.testnet",
+      "returned": "300000000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "carol.calydon-v12-1794130347.testnet",
+              "new_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "amount": "303000000000000000000",
+              "memo": "commit"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "commit",
+          "data": [
+            {
+              "hunt": 2,
+              "hunter": "carol.calydon-v12-1794130347.testnet",
+              "stake": "300000000000000000000",
+              "fee": "3000000000000000000",
+              "weight": "1200000000000000000000",
+              "committed": "800000000000000000000",
+              "height": 276758448
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 2: resolve",
+      "tx": "4p1hZF7nU9VJsgnaK1wDzf23t4WYgL8GMmetzyx4Dqmw",
+      "link": "https://testnet.nearblocks.io/txns/4p1hZF7nU9VJsgnaK1wDzf23t4WYgL8GMmetzyx4Dqmw",
+      "signer": "calydon-v12-1794130347.testnet",
+      "returned": "Slain",
+      "events": [
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "resolve",
+          "data": [
+            {
+              "hunt": 2,
+              "outcome": "Slain",
+              "hp": "770000000000000000000",
+              "committed": "800000000000000000000",
+              "pot": "10000000000000000001",
+              "next_hp": "847000000000000000000"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "open",
+          "data": [
+            {
+              "hunt": 3,
+              "hp": "847000000000000000000",
+              "deadline": 276759032
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 2: bob claim",
+      "tx": "FQPehYuzV5he1vigPBpFgpbcymSJnRhetfYh5VQC9ZEr",
+      "link": "https://testnet.nearblocks.io/txns/FQPehYuzV5he1vigPBpFgpbcymSJnRhetfYh5VQC9ZEr",
+      "signer": "bob.calydon-v12-1794130347.testnet",
+      "returned": "506250000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "new_owner_id": "bob.calydon-v12-1794130347.testnet",
+              "amount": "506250000000000000000",
+              "memo": "claim"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "claim",
+          "data": [
+            {
+              "hunt": 2,
+              "hunter": "bob.calydon-v12-1794130347.testnet",
+              "outcome": "Slain",
+              "paid": "506250000000000000000",
+              "burned": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "hunt 2: carol claim",
+      "tx": "9kawgmoQ5tcBCmk6KQ22z7HZRmHqbxcpvG23RwcvR1xf",
+      "link": "https://testnet.nearblocks.io/txns/9kawgmoQ5tcBCmk6KQ22z7HZRmHqbxcpvG23RwcvR1xf",
+      "signer": "carol.calydon-v12-1794130347.testnet",
+      "returned": "303750000000000000000",
+      "events": [
+        {
+          "standard": "nep141",
+          "version": "1.0.0",
+          "event": "ft_transfer",
+          "data": [
+            {
+              "old_owner_id": "cal.calydon-v12-1794130347.testnet",
+              "new_owner_id": "carol.calydon-v12-1794130347.testnet",
+              "amount": "303750000000000000000",
+              "memo": "claim"
+            }
+          ]
+        },
+        {
+          "standard": "calydon",
+          "version": "1.2.0",
+          "event": "claim",
+          "data": [
+            {
+              "hunt": 2,
+              "hunter": "carol.calydon-v12-1794130347.testnet",
+              "outcome": "Slain",
+              "paid": "303750000000000000000",
+              "burned": "0"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "refused": [
+    {
+      "step": "hunt 1: holder ft_transfer 50 CAL to the contract",
+      "tx": "5ry7JrkVZe4eoqwHSuaVX2qAy2dnEMqbeg4Gywh9ycYd",
+      "link": "https://testnet.nearblocks.io/txns/5ry7JrkVZe4eoqwHSuaVX2qAy2dnEMqbeg4Gywh9ycYd",
+      "signer": "calydon-v12-1794130347.testnet",
+      "error": "RECEIVER_IS_CONTRACT"
+    },
+    {
+      "step": "hunt 1: holder ft_transfer_call 50 CAL to the contract",
+      "tx": "Hr4YDos6J46qwVmaBJgv4kALsZzAmAaztPLfZpFfdgge",
+      "link": "https://testnet.nearblocks.io/txns/Hr4YDos6J46qwVmaBJgv4kALsZzAmAaztPLfZpFfdgge",
+      "signer": "calydon-v12-1794130347.testnet",
+      "error": "RECEIVER_IS_CONTRACT"
+    }
+  ],
+  "end_totals": {
+    "supply": "999980000000000000000000",
+    "held": "977000000000000000000001",
+    "hoard": "1",
+    "locked": "0",
+    "unclaimed": "0",
+    "starter_left": "977000000000000000000000",
+    "burned": "20000000000000000000"
+  },
+  "end_hunt": {
+    "id": 3,
+    "hp": "847000000000000000000",
+    "deadline": 276759032,
+    "committed": "0",
+    "weight": "0",
+    "hunters": 0,
+    "claims": 0,
+    "outcome": null,
+    "pot": "0",
+    "paid": "0",
+    "first_spear": null,
+    "starters": 0
+  }
+}
