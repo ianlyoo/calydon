@@ -51,9 +51,9 @@ Why each rule exists, and the problem the rising entry fee answers: [MECHANIC.md
 ## 1. Check the contract in one command → see every claim `HELD`
 
 Prerequisites. Both paths below were run for this repository: macOS on Apple Silicon, and a clean
-`ubuntu:24.04` container following exactly these lines (2026-11-08 17:18–17:22 KST, commit `aca1066`, arm64, Node 18.19.1: the clone was copied in
-because the repository is private; `npm run verify` took 3 min 5 s including the first build, and
-`npm run observe-testnet` printed `All 5 checks hold`).
+`ubuntu:24.04` container following exactly these lines (2026-11-08 19:09–19:17 KST, commit `f542e59`, arm64, Node 18.19.1: the clone was copied in
+because the repository is private; `npm run verify` took 3 min 10 s including the first build and
+printed 23 claims held, and `npm run observe-testnet` printed `All 5 checks hold` for the v1.2 instance).
 
 - **Debian/Ubuntu** (as root, or with `sudo`):
   ```sh
@@ -406,23 +406,23 @@ npm run verify:reproducible
 Needs Docker. It reads the source commit named inside `res/calydon.wasm` (NEP-330), builds that
 commit with `git archive` in the pinned image
 `docker.io/library/rust:1.99.1-slim-bookworm@sha256:392f2219…` (linux/amd64; on an arm64 host Docker
-emulates it and the build runs one job at a time: 7–8 minutes on an Apple Silicon Mac), and
+emulates it and the build runs one job at a time: 5–8 minutes on an Apple Silicon Mac), and
 compares the result with `res/calydon.wasm`, `res/calydon.wasm.sha256` and the code hash deployed on
 testnet. On Apple Silicon the emulated build crashed once in five one-job runs (`linking with cc failed:
 signal: 11 (SIGSEGV)`, an emulator crash, not a byte difference); running it again passed. Expected
 output:
 
 ```text
-building commit 9000bcf84cbe5d0fb0b94a85c27cb3da21812556 in docker.io/library/rust:1.99.1-slim-bookworm@sha256:392f221964669402bf4ae133d2a46c3ae270f64734133f4b2703d40019235c1a with CARGO_BUILD_JOBS=1
+building commit 008c805eecc1382e5743577bd2fd746354463e40 in docker.io/library/rust:1.99.1-slim-bookworm@sha256:392f221964669402bf4ae133d2a46c3ae270f64734133f4b2703d40019235c1a with CARGO_BUILD_JOBS=1
 ...
-    Finished `release` profile [optimized] target(s) in 7m 26s
-0f0b8ce7b02ca03d1edf1d4e0053a198f880cd1131e8dbaf288a0594ee15754d  .../target/reproducible/calydon.wasm
-OK    rebuilt from commit 9000bcf84cbe5d0fb0b94a85c27cb3da21812556: byte-identical to res/calydon.wasm
-      sha256 0f0b8ce7b02ca03d1edf1d4e0053a198f880cd1131e8dbaf288a0594ee15754d vs 0f0b8ce7b02ca03d1edf1d4e0053a198f880cd1131e8dbaf288a0594ee15754d
+    Finished `release` profile [optimized] target(s) in 4m 46s
+3f81cbfd5022cd46d1dde89019914b958c449f68646f1525f0592d9deff4e3c0  .../target/reproducible/calydon.wasm
+OK    rebuilt from commit 008c805eecc1382e5743577bd2fd746354463e40: byte-identical to res/calydon.wasm
+      sha256 3f81cbfd5022cd46d1dde89019914b958c449f68646f1525f0592d9deff4e3c0 vs 3f81cbfd5022cd46d1dde89019914b958c449f68646f1525f0592d9deff4e3c0
 OK    equals res/calydon.wasm.sha256
-      0f0b8ce7b02ca03d1edf1d4e0053a198f880cd1131e8dbaf288a0594ee15754d
-OK    equals the code deployed on testnet at cal.calydon-v11-1794122775.testnet
-      chain code_hash 21jLBW4mzWYK1oW2bV2HTC7yRPaKS6MMmr5NjaUxAgpt, rebuilt 21jLBW4mzWYK1oW2bV2HTC7yRPaKS6MMmr5NjaUxAgpt
+      3f81cbfd5022cd46d1dde89019914b958c449f68646f1525f0592d9deff4e3c0
+OK    equals the code deployed on testnet at cal.calydon-v12-1794130347.testnet
+      chain code_hash 5GuUinESoDknp1ge6t5jTRno2yioVtif8DR5UQBJUgGP, rebuilt 5GuUinESoDknp1ge6t5jTRno2yioVtif8DR5UQBJUgGP
 
 Source, committed wasm and deployed code are the same bytes.
 ```
