@@ -7,8 +7,15 @@
 //! - Slain (committed >= HP): stake back plus a share of the hoard, rounded down. Next HP x `hp_up_bps`.
 //! - Escaped: stake back minus `burn_bps`, rounded up, and that part burns. Next HP x `hp_down_bps`.
 //!
-//! v1.0 launch values: rule `EarlyWeight`, tribute 1%, fill fee up to +10%, burn 10%, HP x1.1 / x0.7.
+//! Launch values: rule `EarlyWeight`, tribute 1%, fill fee up to +10%, burn 10%, HP x1.1 / x0.7.
 //! The supply is created once at `new`; nothing ever mints again, so it only falls (escape burns).
+//! It starts in three places: a starter bucket (`starter` gives a fixed amount once per account),
+//! the launch hoard, and the launch holder.
+//! Every record the contract stores is paid in NEAR by the call that creates it: a commit that
+//! creates an entry attaches `entry_deposit` (returned by `claim`); `resolve` and `starter` attach
+//! `record_deposit` (kept: their records stay). Each such call checks that its storage growth costs
+//! no more than what was attached.
+//! CAL sent to the contract by a plain transfer is swept into the hoard by the next `resolve`.
 //! Every parameter is fixed at `new` and readable through `config`. There is no owner, setter or pause.
 use near_contract_standards::fungible_token::events::{FtBurn, FtMint, FtTransfer};
 use near_contract_standards::fungible_token::metadata::{
@@ -22,10 +29,10 @@ use near_contract_standards::storage_management::{
 };
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::{Value, json};
-use near_sdk::store::{LookupMap, Vector};
+use near_sdk::store::{LookupMap, LookupSet, Vector};
 use near_sdk::{
-    AccountId, BorshStorageKey, NearToken, PanicOnDefault, PromiseOrValue, assert_one_yocto, env,
-    near, require,
+    AccountId, BorshStorageKey, NearToken, PanicOnDefault, Promise, PromiseOrValue, env, near,
+    require,
 };
 
 uint::construct_uint! {
@@ -62,6 +69,16 @@ pub struct Config {
     pub burn_bps: u32,
     pub hp_up_bps: u32,
     pub hp_down_bps: u32,
+    /// Smallest amount a commit accepts, in yocto-CAL.
+    pub min_stake: U128,
+    /// yoctoNEAR attached to a commit that creates the caller's entry in a hunt (a later commit to the
+    /// same hunt attaches 1 yoctoNEAR). It pays for the entry's storage; `claim` sends it back.
+    pub entry_deposit: U128,
+    /// yoctoNEAR attached to `resolve` and to `starter`. It pays for the record they add (the next
+    /// hunt, the starter mark) and stays with the contract, as those records do.
+    pub record_deposit: U128,
+    /// yocto-CAL that `starter` gives an account, once, while the starter bucket lasts.
+    pub starter_amount: U128,
 }
 
 #[near(serializers = [json, borsh])]
@@ -85,6 +102,8 @@ pub struct Hunt {
     /// The hoard handed to this hunt's hunters when it was slain; `paid` of it has been claimed.
     pub pot: U128,
     pub paid: U128,
+    /// "First Spear": the account whose commit opened this hunt's bar.
+    pub first_spear: Option<AccountId>,
 }
 
 #[near(serializers = [json, borsh])]
@@ -97,11 +116,13 @@ pub struct Entry {
 #[near(serializers = [json])]
 pub struct Totals {
     pub supply: U128,
-    /// The contract's own token balance; equals hoard + locked + unclaimed.
+    /// The contract's own token balance: hoard + locked + unclaimed + starter_left, plus whatever was
+    /// sent to the contract by plain transfer since the last `resolve` (which sweeps it into the hoard).
     pub held: U128,
     pub hoard: U128,
     pub locked: U128,
     pub unclaimed: U128,
+    pub starter_left: U128,
     pub burned: U128,
 }
 
@@ -111,6 +132,7 @@ enum Key {
     Accounts,
     Hunts,
     Entries,
+    Starters,
 }
 
 #[near(contract_state)]
@@ -120,8 +142,10 @@ pub struct Calydon {
     config: Config,
     hunts: Vector<Hunt>,
     entries: LookupMap<(u64, AccountId), Entry>,
+    starters: LookupSet<AccountId>,
     hoard: u128,
     unclaimed: u128,
+    starter_left: u128,
     burned: u128,
 }
 
@@ -158,38 +182,58 @@ pub fn share(pot: u128, weight: u128, total_weight: u128) -> u128 {
 fn emit(event: &str, data: Value) {
     env::log_str(&format!(
         "EVENT_JSON:{}",
-        json!({"standard": "calydon", "version": "1.0.0", "event": event, "data": [data]})
+        json!({"standard": "calydon", "version": "1.1.0", "event": event, "data": [data]})
     ));
 }
 
 #[near]
 impl Calydon {
-    /// Mints `supply` to `holder` and `hoard` into the hoard, once; opens hunt 0.
+    /// Mints, once: `supply` to `holder`, `hoard` into the hoard and `starter` into the starter
+    /// bucket (both held by the contract). Opens hunt 0.
     #[init]
-    pub fn new(holder: AccountId, supply: U128, hoard: U128, config: Config) -> Self {
+    pub fn new(holder: AccountId, supply: U128, hoard: U128, starter: U128, config: Config) -> Self {
         require!(config.hunt_blocks > 0 && config.step_blocks > 0, "BAD_CONFIG");
         require!(config.tribute_bps <= 10_000 && config.burn_bps <= 10_000, "BAD_CONFIG");
         require!(config.tribute_bps + config.fill_fee_bps <= 10_000, "BAD_CONFIG");
+        require!(config.min_stake.0 > 0 && config.entry_deposit.0 > 0, "BAD_CONFIG");
         let mut this = Self {
             token: FungibleToken::new(Key::Accounts),
             config,
             hunts: Vector::new(Key::Hunts),
             entries: LookupMap::new(Key::Entries),
+            starters: LookupSet::new(Key::Starters),
             hoard: hoard.0,
             unclaimed: 0,
+            starter_left: starter.0,
             burned: 0,
         };
         let me = env::current_account_id();
         this.token.internal_register_account(&me);
         this.token.internal_register_account(&holder);
         this.token.internal_deposit(&holder, supply.0);
-        this.token.internal_deposit(&me, hoard.0);
+        this.token.internal_deposit(&me, hoard.0 + starter.0);
         FtMint::emit_many(&[
-            FtMint { owner_id: &holder, amount: supply, memo: Some("launch supply") },
+            FtMint { owner_id: &holder, amount: supply, memo: Some("launch holder") },
             FtMint { owner_id: &me, amount: hoard, memo: Some("launch hoard") },
+            FtMint { owner_id: &me, amount: starter, memo: Some("starter bucket") },
         ]);
         this.open(this.config.first_hp.0);
         this
+    }
+
+    /// Flushes the buffered collections, then requires that the storage added since `before` costs
+    /// no more than `attached` yoctoNEAR.
+    fn pay_storage(&mut self, before: u64, attached: u128) {
+        self.hunts.flush();
+        self.entries.flush();
+        let added = env::storage_usage().saturating_sub(before) as u128;
+        require!(added * env::storage_byte_cost().as_yoctonear() <= attached, "STORAGE_NOT_COVERED");
+    }
+
+    fn require_attached(&self, amount: u128, error: &str) {
+        if env::attached_deposit().as_yoctonear() != amount {
+            env::panic_str(error);
+        }
     }
 
     fn open(&mut self, hp: u128) {
@@ -205,6 +249,7 @@ impl Calydon {
             outcome: None,
             pot: U128(0),
             paid: U128(0),
+            first_spear: None,
         });
         emit("open", json!({"hunt": id, "hp": U128(hp.max(1)), "deadline": env::block_height() + self.config.hunt_blocks}));
     }
@@ -220,15 +265,24 @@ impl Calydon {
     }
 
     /// Locks `amount` in the current hunt (under rule A, at most the HP still missing) and charges
-    /// the tribute on top. Returns the stake actually locked.
+    /// the entry fee on top. Attach `entry_deposit` if this creates your entry in the hunt, otherwise
+    /// 1 yoctoNEAR. Returns the stake actually locked.
     #[payable]
     pub fn commit(&mut self, amount: U128) -> U128 {
-        assert_one_yocto();
+        let before = env::storage_usage();
         let hunter = env::predecessor_account_id();
         let height = env::block_height();
         let id = self.hunts.len() as u32 - 1;
         let mut hunt = self.hunts[id].clone();
         require!(height < hunt.deadline, "HUNT_CLOSED");
+        require!(amount.0 >= self.config.min_stake.0, "BELOW_MIN_STAKE");
+        let key = (hunt.id, hunter.clone());
+        let fresh = !self.entries.contains_key(&key);
+        if fresh {
+            self.require_attached(self.config.entry_deposit.0, "ATTACH_ENTRY_DEPOSIT");
+        } else {
+            self.require_attached(1, "ATTACH_ONE_YOCTO");
+        }
         let (stake, weight) = match self.config.rule {
             Rule::HpCap => {
                 let stake = amount.0.min(hunt.hp.0.saturating_sub(hunt.committed.0));
@@ -244,28 +298,42 @@ impl Calydon {
         self.move_tokens(&hunter, &env::current_account_id(), stake + fee, "commit");
         self.hoard += fee;
 
-        let key = (hunt.id, hunter.clone());
         let mut entry = self.entries.get(&key).copied().unwrap_or_default();
-        if entry.stake.0 == 0 {
+        if fresh {
             hunt.hunters += 1;
+        }
+        if hunt.first_spear.is_none() {
+            hunt.first_spear = Some(hunter.clone());
         }
         entry.stake.0 += stake;
         entry.weight.0 += weight;
         self.entries.insert(key, entry);
         hunt.committed.0 += stake;
         hunt.weight.0 += weight;
-        emit("commit", json!({"hunt": hunt.id, "hunter": hunter, "stake": U128(stake), "fee": U128(fee), "weight": U128(weight), "committed": hunt.committed}));
+        emit("commit", json!({"hunt": hunt.id, "hunter": hunter, "stake": U128(stake), "fee": U128(fee), "weight": U128(weight), "committed": hunt.committed, "height": height}));
         self.hunts[id] = hunt;
+        self.pay_storage(before, env::attached_deposit().as_yoctonear());
         U128(stake)
     }
 
-    /// Settles hunt `hunt` once its deadline has passed and opens the next one. Anyone may call it.
+    /// Settles hunt `hunt` once its deadline has passed and opens the next one. Anyone may call it,
+    /// attaching `record_deposit` for the next hunt's record. First sweeps into the hoard any CAL the
+    /// contract holds beyond hoard + locked + unclaimed + starter bucket (plain transfers to it).
+    #[payable]
     pub fn resolve(&mut self, hunt: u64) -> Outcome {
+        let before = env::storage_usage();
+        self.require_attached(self.config.record_deposit.0, "ATTACH_RECORD_DEPOSIT");
         let current = self.hunts.len() as u64 - 1;
         require!(hunt <= current, "NO_SUCH_HUNT");
         require!(hunt == current, "ALREADY_RESOLVED");
         let mut h = self.hunts[current as u32].clone();
         require!(env::block_height() >= h.deadline, "BEFORE_DEADLINE");
+        let held = self.token.internal_unwrap_balance_of(&env::current_account_id());
+        let surplus = held - (self.hoard + h.committed.0 + self.unclaimed + self.starter_left);
+        if surplus > 0 {
+            self.hoard += surplus;
+            emit("sweep", json!({"hunt": hunt, "amount": U128(surplus)}));
+        }
         let slain = h.committed.0 > 0 && h.committed.0 >= h.hp.0;
         let (outcome, next_bps) = if slain {
             h.pot = U128(self.hoard);
@@ -280,10 +348,33 @@ impl Calydon {
         emit("resolve", json!({"hunt": hunt, "outcome": outcome, "hp": h.hp, "committed": h.committed, "pot": h.pot, "next_hp": U128(next_hp.max(1))}));
         self.hunts[current as u32] = h;
         self.open(next_hp);
+        self.pay_storage(before, self.config.record_deposit.0);
         outcome
     }
 
-    /// Pays the caller's settlement for a resolved hunt, exactly once. Returns the amount paid.
+    /// Gives the caller `starter_amount` CAL from the starter bucket, once per account (the last one
+    /// gets what is left). The caller must be registered (`storage_deposit`) and attach
+    /// `record_deposit` for the mark that it has taken its starter.
+    #[payable]
+    pub fn starter(&mut self) -> U128 {
+        let before = env::storage_usage();
+        self.require_attached(self.config.record_deposit.0, "ATTACH_RECORD_DEPOSIT");
+        let who = env::predecessor_account_id();
+        require!(self.token.accounts.contains_key(&who), "NOT_REGISTERED");
+        require!(!self.starters.contains(&who), "STARTER_TAKEN");
+        let amount = self.config.starter_amount.0.min(self.starter_left);
+        require!(amount > 0, "STARTER_EMPTY");
+        self.starter_left -= amount;
+        self.starters.insert(who.clone());
+        let me = env::current_account_id();
+        self.move_tokens(&me, &who, amount, "starter");
+        emit("starter", json!({"account_id": who, "amount": U128(amount), "left": U128(self.starter_left)}));
+        self.pay_storage(before, self.config.record_deposit.0);
+        U128(amount)
+    }
+
+    /// Pays the caller's settlement for a resolved hunt, exactly once, and sends back the entry's
+    /// `entry_deposit` in NEAR. Returns the CAL paid.
     pub fn claim(&mut self, hunt: u64) -> U128 {
         let hunter = env::predecessor_account_id();
         require!(hunt < self.hunts.len() as u64, "NO_SUCH_HUNT");
@@ -322,6 +413,7 @@ impl Calydon {
         }
         emit("claim", json!({"hunt": hunt, "hunter": hunter, "outcome": outcome, "paid": U128(payout), "burned": U128(burn)}));
         self.hunts[hunt as u32] = h;
+        Promise::new(hunter).transfer(NearToken::from_yoctonear(self.config.entry_deposit.0)).detach();
         U128(payout)
     }
 
@@ -341,6 +433,11 @@ impl Calydon {
         self.entries.get(&(hunt, account_id)).copied()
     }
 
+    /// Whether `account_id` has taken its starter.
+    pub fn starter_taken(&self, account_id: AccountId) -> bool {
+        self.starters.contains(&account_id)
+    }
+
     pub fn totals(&self) -> Totals {
         Totals {
             supply: U128(self.token.total_supply),
@@ -348,6 +445,7 @@ impl Calydon {
             hoard: U128(self.hoard),
             locked: self.current_hunt().committed,
             unclaimed: U128(self.unclaimed),
+            starter_left: U128(self.starter_left),
             burned: U128(self.burned),
         }
     }

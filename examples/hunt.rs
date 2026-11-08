@@ -1,14 +1,16 @@
 //! `npm run hunt -- <command>`: play Calydon on NEAR testnet from faucet accounts.
 //!
-//!   launch [--hunt-blocks 600]   your own locked instance: a faucet account holds the supply, hunters
-//!                                alice and bob get 5000 CAL each (keys under .credentials/testnet/)
+//!   launch [--hunt-blocks 600]   your own instance (no access key on the contract account): a faucet
+//!                                account is the launch holder; alice and bob take their 1000-CAL
+//!                                starters (keys under .credentials/testnet/)
 //!   status                       the current hunt, the hoard and the supply (read-only)
+//!   starter --as <name>          take the one-time 1000-CAL starter (registers the account first)
 //!   commit <CAL> --as <name>     lock a stake in the current hunt; the entry fee is paid on top
 //!   resolve [--as <name>]        settle the current hunt once its deadline has passed (anyone)
 //!   claim <hunt> --as <name>     take your settlement for a resolved hunt
 //!
 //! The instance is `--contract <id>`, else the last `launch` (.credentials/testnet/play.json), else
-//! the recorded v1.0 instance in testnet/run.json (read-only for you: its CAL sits with our hunters).
+//! the recorded v1.1 instance in testnet/run.json (any testnet account can take a starter and play).
 //! `<name>` is alice, bob, holder or a full account id with a key file in .credentials/testnet/.
 #[path = "../tests/common/mod.rs"]
 mod common;
@@ -82,11 +84,11 @@ async fn status(cal: &Contract, worker: &Worker<Testnet>) -> Result<()> {
     println!("hunt {}: [{}{}] {} / {} CAL committed by {} hunter(s)", h["id"], "#".repeat(filled / 5), ".".repeat(20 - filled / 5), show(committed), show(hp), h["hunters"]);
     if now < deadline {
         let fee = fill_fee(committed, C, hp, cfg["tribute_bps"].as_u64().unwrap_or(0) as u32, cfg["fill_fee_bps"].as_u64().unwrap_or(0) as u32);
-        println!("  open: {} blocks left (deadline {deadline}); the next 1 CAL committed pays {} CAL fee", deadline - now, show(fee));
+        println!("  open: {} blocks left (deadline {deadline}); the next 1 CAL committed pays {} CAL fee (a larger stake pays the fee integrated over the fill it covers)", deadline - now, show(fee));
     } else {
         println!("  deadline {deadline} passed: `npm run hunt -- resolve` settles it ({})", if committed >= hp && committed > 0 { "will be Slain" } else { "will be Escaped" });
     }
-    println!("hoard {} CAL · supply {} CAL · burned {} CAL · unclaimed {} CAL", show(num(&t["hoard"])?), show(num(&t["supply"])?), show(num(&t["burned"])?), show(num(&t["unclaimed"])?));
+    println!("hoard {} CAL · supply {} CAL · burned {} CAL · unclaimed {} CAL · starter bucket {} CAL", show(num(&t["hoard"])?), show(num(&t["supply"])?), show(num(&t["burned"])?), show(num(&t["unclaimed"])?), show(num(&t["starter_left"])?));
     Ok(())
 }
 
@@ -107,16 +109,25 @@ async fn main() -> Result<()> {
         Some("launch") => {
             let blocks: u64 = flag(&args, "--hunt-blocks").unwrap_or("600").parse().context("--hunt-blocks")?;
             let cfg = launch_config(1_000 * C, blocks, blocks.div_ceil(4));
-            let l = launch_testnet(&worker, "calydon-play", &["alice", "bob"], cfg, 1_000_000 * C, 1_000 * C, 5_000 * C, KEYS).await?;
+            let l = launch_testnet(&worker, "calydon-play", &["alice", "bob"], cfg, 10_000 * C, 10_000 * C, 980_000 * C, KEYS).await?;
             std::fs::write(format!("{KEYS}/play.json"), serde_json::to_string_pretty(&json!({"contract": l.cal.id(), "holder": l.root.id()}))?)?;
-            println!("launched {} (no access key left); holder {}; alice and bob hold 5000 CAL each", l.cal.id(), l.root.id());
+            println!("launched {} (no access key); holder {}; alice and bob took 1000-CAL starters", l.cal.id(), l.root.id());
             status(&l.cal, &worker).await
         }
-        Some(cmd @ ("status" | "commit" | "resolve" | "claim")) => {
+        Some(cmd @ ("status" | "starter" | "commit" | "resolve" | "claim")) => {
             let id = instance(&args)?;
             let cal = Contract::from_secret_key(id.parse()?, near_workspaces::types::SecretKey::from_random(near_workspaces::types::KeyType::ED25519), &worker);
             match cmd {
                 "status" => status(&cal, &worker).await,
+                "starter" => {
+                    let who = signer(&worker, &id, flag(&args, "--as").context("starter needs --as <name>")?)?;
+                    if view(&cal, "storage_balance_of", json!({"account_id": who.id()})).await?.is_null() {
+                        done(&format!("{} registered (storage_deposit)", who.id()), &register(&cal, &who).await?)?;
+                    }
+                    let got = num(&done(&format!("{} took the starter", who.id()), &starter(&cal, &who).await?)?)?;
+                    println!("  got {} CAL; balance now {} CAL", show(got), show(balance(&cal, who.id()).await?));
+                    Ok(())
+                }
                 "commit" => {
                     let amount = parse_cal(args.get(1).context("commit <CAL> --as <name>")?)?;
                     let who = signer(&worker, &id, flag(&args, "--as").context("commit needs --as <name>")?)?;
@@ -140,7 +151,7 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        _ => bail!("usage: npm run hunt -- launch [--hunt-blocks N] | status | commit <CAL> --as <name> | resolve [--as <name>] | claim <hunt> --as <name>  [--contract <id>]"),
+        _ => bail!("usage: npm run hunt -- launch [--hunt-blocks N] | status | starter --as <name> | commit <CAL> --as <name> | resolve [--as <name>] | claim <hunt> --as <name>  [--contract <id>]"),
     }
 }
 
