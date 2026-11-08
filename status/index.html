@@ -64,9 +64,9 @@
 </dl>
 <button id="resolve" hidden>Resolve this hunt</button>
 
-<div class="panel" id="commitPanel" hidden>
+<div class="panel" id="commitPanel">
   <b>Commit</b> <input id="stake" type="text" inputmode="decimal" value="100"> CAL
-  <button id="commit">Commit</button>
+  <button id="commit" disabled>Commit</button> <span class="muted" id="commitHint"></span>
   <table class="preview"><tbody id="preview"></tbody></table>
   <div class="muted" id="previewNote"></div>
 </div>

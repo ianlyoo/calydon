@@ -44,7 +44,7 @@ use serde_json::{Value, json};
 const C: u128 = 1_000_000_000_000_000_000;
 const SUPPLY: u128 = 100_000_000 * C;
 const ROUNDS: u64 = 4;
-const STEP: u64 = 25;
+const STEP: u64 = 100;
 const SIT_OUT: u64 = 3;
 const TRIBUTE_BPS: u32 = 100;
 const VARIANT: &str = "v1.1";

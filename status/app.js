@@ -83,13 +83,21 @@ async function send(method, args, deposit, label) {
   await refresh();
 }
 
+// The preview works signed out; the Commit button needs a signed-in, registered account and an open hunt.
+function gate() {
+  $("commit").disabled = !(me && state.reg && state.open);
+  $("commitHint").textContent = !me ? "Sign in to commit." : !state.reg ? "Register with storage_deposit to commit." : state.open ? "" : "This hunt is closed; resolve it to open the next one.";
+}
+
 function preview() {
   const h = state.hunt;
   if (!h || !cfg) return;
   const stake = parseCal($("stake").value);
   const rows = [];
   let note = "";
-  if (stake === null || stake <= 0n) {
+  if (h.deadline - state.height <= 0) {
+    rows.push(["", `hunt #${h.id} is closed: commits are refused until someone resolves it, which opens hunt #${h.id + 1}`]);
+  } else if (stake === null || stake <= 0n) {
     rows.push(["", "enter an amount of CAL"]);
   } else {
     const hp = BigInt(h.hp), before = BigInt(h.committed);
@@ -150,7 +158,8 @@ async function refresh() {
     $("bucket").textContent = cal(t.starter_left, 0);
     $("keys").textContent = keys.keys.length === 0 ? "0 (nobody can change or redeploy the code)" : String(keys.keys.length);
     $("resolve").hidden = !(me && left <= 0);
-    $("commit").disabled = left <= 0;
+    state.open = left > 0;
+    gate();
     for (let id = Math.max(0, h.id - 49); id < h.id; id++)
       if (!hunts.has(id) || hunts.get(id).claims < hunts.get(id).hunters) hunts.set(id, await view("hunt", { id }));
     hunts.set(h.id, h);
@@ -173,7 +182,8 @@ async function refreshMe(h) {
   $("register").hidden = !!reg;
   $("myStarter").textContent = taken ? "taken" : BigInt(state.totals.starter_left) > 0n ? `available: ${cal(cfg.starter_amount, 0)}` : "bucket empty";
   $("starter").hidden = !!taken || !reg || BigInt(state.totals.starter_left) === 0n;
-  $("commitPanel").hidden = !reg;
+  state.reg = !!reg;
+  gate();
   const rows = [];
   state.myEntry = null;
   for (let id = Math.max(0, h.id - 49); id <= h.id; id++) {
@@ -200,7 +210,8 @@ async function showAccount() {
   $("signedOut").hidden = !!me;
   $("signedIn").hidden = !me;
   $("me").textContent = me || "";
-  if (!me) { $("commitPanel").hidden = true; $("entriesPanel").hidden = true; $("resolve").hidden = true; }
+  if (!me) { state.reg = false; $("entriesPanel").hidden = true; $("resolve").hidden = true; }
+  gate();
 }
 
 async function blockTime() {
