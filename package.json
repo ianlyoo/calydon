@@ -1,6 +1,6 @@
 {
   "name": "calydon",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "A memecoin you hunt together on NEAR: commit against the beast's HP before the deadline.",
   "engines": {
@@ -10,9 +10,11 @@
     "verify": "cargo test --locked -- --nocapture --test-threads=1",
     "simulate": "cargo run --locked --release --quiet --example simulate --",
     "sim-tables": "node scripts/sim-tables.mjs",
+    "sim-converge": "node scripts/sim-converge.mjs",
     "hunt": "cargo run --locked --quiet --example hunt --",
     "observe-testnet": "node scripts/observe-testnet.mjs",
     "verify:reproducible": "node scripts/verify-reproducible.mjs",
+    "page": "node scripts/status-page.mjs",
     "status-page": "node scripts/status-page.mjs",
     "execute-testnet": "cargo test --locked --test testnet -- --ignored --nocapture",
     "build-wasm": "bash scripts/build-wasm.sh",

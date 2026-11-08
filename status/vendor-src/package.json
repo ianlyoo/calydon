@@ -1,0 +1,17 @@
+{
+  "name": "calydon-page-vendor",
+  "private": true,
+  "description": "Builds ../vendor/wallet-selector.js (NEAR wallet-selector, pinned) for the page. Only needed to rebuild that file: npm ci --ignore-scripts && npm run bundle",
+  "scripts": {
+    "bundle": "esbuild entry.mjs --bundle --format=esm --platform=browser --target=es2020 --minify --legal-comments=eof --define:global=globalThis --alias:util=./shim-util.mjs --inject:./inject-buffer.mjs --outfile=../vendor/wallet-selector.js"
+  },
+  "dependencies": {
+    "@near-js/transactions": "2.5.1",
+    "@near-wallet-selector/core": "10.1.4",
+    "@near-wallet-selector/intear-wallet": "10.1.4",
+    "buffer": "6.0.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}
