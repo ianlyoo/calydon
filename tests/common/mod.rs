@@ -16,6 +16,18 @@ pub fn wasm() -> Result<Vec<u8>> {
     std::fs::read(path).context("res/calydon.wasm missing; run scripts/build-wasm.sh")
 }
 
+/// The v1.0 launch values: rule B, tribute 1% plus a fill fee up to 10% into the hoard, escape burns
+/// 10%, next HP x1.1 after a kill and x0.7 after an escape. The testnet instance, `npm run hunt -- launch`
+/// and the simulation's defaults all start from this.
+pub fn launch_config(first_hp: u128, hunt_blocks: u64, step_blocks: u64) -> Value {
+    json!({
+        "name": "Calydon", "symbol": "CAL", "decimals": 18, "rule": "EarlyWeight",
+        "first_hp": first_hp.to_string(), "hunt_blocks": hunt_blocks, "step_blocks": step_blocks,
+        "tribute_bps": 100, "fill_fee_bps": 1_000, "burn_bps": 1_000, "hp_up_bps": 11_000, "hp_down_bps": 7_000,
+    })
+}
+
+/// Arithmetic-test values: no fill fee and HP x1.25 / x0.8, so the scripted payouts are round numbers.
 pub fn config(rule: &str, first_hp: u128, hunt_blocks: u64, step_blocks: u64) -> Value {
     json!({
         "name": "Calydon", "symbol": "CAL", "decimals": 18, "rule": rule,

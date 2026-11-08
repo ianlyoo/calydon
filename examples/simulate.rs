@@ -1,8 +1,10 @@
 //! `npm run simulate -- --seed 494 [--hunters 300] [--hunts 60] [--hp0-bps 300] [--burn-bps 1000] [--hoard-bps 100]
-//!   [--hp-up 12500 --hp-down 8000] [--split-k 8] [--fee-max-bps 100] [--set config_field=value ...]`
+//!   [--hp-up 11000 --hp-down 7000] [--split-k 8] [--set config_field=value ...]`
 //!
-//! Runs the strategy simulation (hunts 1..=60; hunt 0 is an empty setup hunt) on a local sandbox against the committed res/calydon.wasm, once per
-//! reward rule (A = HpCap, B = EarlyWeight), and writes sim/seed-<seed>-hp<bps>[-ctl<up>-<down>][-<field><value>].json.
+//! Runs the strategy simulation (hunts 1..=60; hunt 0 is an empty setup hunt) on a local sandbox against the committed
+//! res/calydon.wasm with the v1.0 launch values (`launch_config`), once per reward rule (B = EarlyWeight, the launch rule,
+//! and A = HpCap for comparison), and writes sim/seed-<seed>-hp<bps>[-burn..-hoard..][-ctl<up>-<down>][-<field><value>].json.
+//! `--set fill_fee_bps=0` runs the same wasm without the fill fee (the pre-v1.0 entry fee).
 //!
 //! Model: each hunt has ROUNDS rounds of STEP blocks. In each round the hunters act in a seeded
 //! order, each seeing what was committed before it (as if transactions landed one by one); the
@@ -36,8 +38,7 @@ const ROUNDS: u64 = 4;
 const STEP: u64 = 25;
 const SIT_OUT: u64 = 3;
 const TRIBUTE_BPS: u32 = 100;
-/// Which branch this simulator was built on (main code = r0).
-const VARIANT: &str = "r2";
+const VARIANT: &str = "v1.0";
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Strategy {
@@ -382,11 +383,13 @@ async fn main() -> Result<()> {
     let hp0_bps = arg(&args, "--hp0-bps", 300)? as u128;
     let burn_bps = arg(&args, "--burn-bps", 1_000)? as u32;
     let hoard_bps = arg(&args, "--hoard-bps", 100)? as u128;
-    let hp_up = arg(&args, "--hp-up", 12_500)? as u128;
-    let hp_down = arg(&args, "--hp-down", 8_000)? as u128;
+    let hp_up = arg(&args, "--hp-up", 11_000)? as u128;
+    let hp_down = arg(&args, "--hp-down", 7_000)? as u128;
     let split_k = arg(&args, "--split-k", 8)? as usize;
-    let fee_max_bps = arg(&args, "--fee-max-bps", TRIBUTE_BPS as u64)? as u32;
     let overrides = sets(&args)?;
+    let fill_fee_bps = overrides.iter().find(|(k, _)| k == "fill_fee_bps").map_or(1_000, |o| o.1) as u32;
+    // The most a commit can pay on top of its stake: every token past a full bar.
+    let fee_max_bps = TRIBUTE_BPS + fill_fee_bps;
     let started = std::time::Instant::now();
 
     let hunters = population(seed, n_hunters, split_k);
@@ -403,11 +406,12 @@ async fn main() -> Result<()> {
     let first_hp = SUPPLY * hp0_bps / 10_000;
     let mut results = vec![];
     let mut storage_min = 0u128;
-    for (rule, label) in [("HpCap", "A (HP cap)"), ("EarlyWeight", "B (early-commit weighting)")] {
+    for (rule, label) in [("EarlyWeight", "B (early-commit weighting, launch rule)"), ("HpCap", "A (HP cap)")] {
         let hoard = SUPPLY * hoard_bps / 10_000;
         // Hunt 0 resolves empty (escaped, x hp_down rounded down); launching at ceil(first HP / hp_down)
         // makes hunt 1 open at exactly the first HP.
-        let mut cfg = config(rule, (first_hp * 10_000).div_ceil(hp_down), ROUNDS * STEP, STEP);
+        let mut cfg = launch_config((first_hp * 10_000).div_ceil(hp_down), ROUNDS * STEP, STEP);
+        cfg["rule"] = json!(rule);
         cfg["burn_bps"] = json!(burn_bps);
         cfg["hp_up_bps"] = json!(hp_up);
         cfg["hp_down_bps"] = json!(hp_down);
@@ -481,7 +485,7 @@ async fn main() -> Result<()> {
         "results": results,
     });
     let levers = if (burn_bps, hoard_bps) == (1_000, 100) { String::new() } else { format!("-burn{burn_bps}-hoard{hoard_bps}") };
-    let ctl = if (hp_up, hp_down) == (12_500, 8_000) { String::new() } else { format!("-ctl{hp_up}-{hp_down}") };
+    let ctl = if (hp_up, hp_down) == (11_000, 7_000) { String::new() } else { format!("-ctl{hp_up}-{hp_down}") };
     let tags: String = overrides.iter().map(|(k, v)| format!("-{}{v}", k.trim_end_matches("_bps").replace('_', ""))).collect();
     let name = format!("seed-{seed}-hp{hp0_bps}{levers}{ctl}{tags}.json");
     let path = format!("{}/sim/{name}", env!("CARGO_MANIFEST_DIR"));

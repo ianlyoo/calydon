@@ -2,11 +2,12 @@
 //!
 //! A plain NEP-141 token plus a hunt. Holders `commit` tokens against the beast's HP before the
 //! deadline; anyone calls `resolve` after it; each hunter calls `claim` once.
-//! - Slain (committed >= HP): stake back plus a share of the hoard, rounded down. Next HP x1.25.
-//! - Escaped: stake back minus 10%, rounded up, and that part burns. Next HP x0.8.
-//! Variant R2: the entry fee rises with how full the bar is when each token goes in (see `fill_fee`)
-//! and is paid into the hoard.
+//! - Entry fee: each committed token pays `tribute_bps` plus `fill_fee_bps` x (how full the bar was
+//!   when it went in), on top of the stake, into the hoard (see `fill_fee`).
+//! - Slain (committed >= HP): stake back plus a share of the hoard, rounded down. Next HP x `hp_up_bps`.
+//! - Escaped: stake back minus `burn_bps`, rounded up, and that part burns. Next HP x `hp_down_bps`.
 //!
+//! v1.0 launch values: rule `EarlyWeight`, tribute 1%, fill fee up to +10%, burn 10%, HP x1.1 / x0.7.
 //! The supply is created once at `new`; nothing ever mints again, so it only falls (escape burns).
 //! Every parameter is fixed at `new` and readable through `config`. There is no owner, setter or pause.
 use near_contract_standards::fungible_token::events::{FtBurn, FtMint, FtTransfer};
@@ -54,8 +55,8 @@ pub struct Config {
     pub step_blocks: u64,
     /// Entry fee on `commit`, paid on top of the stake into the hoard, rounded up.
     pub tribute_bps: u32,
-    /// Variant R2: extra entry fee per token, rising linearly from 0 at an empty bar to this at a
-    /// full one (and this past the HP); paid into the hoard with the tribute. See `fill_fee`.
+    /// Extra entry fee per token, rising linearly from 0 at an empty bar to this at a full one (and
+    /// this past the HP); paid into the hoard with the tribute. See `fill_fee`.
     pub fill_fee_bps: u32,
     /// Part of an escaped stake that burns, rounded up.
     pub burn_bps: u32,
@@ -133,7 +134,7 @@ pub fn floor_bps(amount: u128, bps: u32) -> u128 {
     (U256::from(amount) * U256::from(bps) / U256::from(10_000u32)).as_u128()
 }
 
-/// Variant R2. Entry fee on `stake` tokens committed when `before` was already committed against
+/// Entry fee on `stake` tokens committed when `before` was already committed against
 /// `hp`: the token at fill level x pays tribute_bps + fill_fee_bps x min(x, hp) / hp, summed over
 /// the tokens of the stake and rounded up once. The sum is additive over consecutive parts, so a
 /// stake cut into parts that land one after another pays the same before rounding and never less after it.
@@ -157,7 +158,7 @@ pub fn share(pot: u128, weight: u128, total_weight: u128) -> u128 {
 fn emit(event: &str, data: Value) {
     env::log_str(&format!(
         "EVENT_JSON:{}",
-        json!({"standard": "calydon", "version": "0.1.0", "event": event, "data": [data]})
+        json!({"standard": "calydon", "version": "1.0.0", "event": event, "data": [data]})
     ));
 }
 

@@ -233,3 +233,130 @@ async fn rule_b_and_splitting() -> Result<()> {
     println!("Calydon verify (rule B, splitting): {n} claims held, 0 broken.");
     Ok(())
 }
+
+async fn call(cal: &near_workspaces::Contract, who: &near_workspaces::Account, method: &str, args: serde_json::Value, deposit: NearToken)
+    -> Result<near_workspaces::result::ExecutionFinalResult> {
+    Ok(who.call(cal.id(), method).args_json(args).deposit(deposit).transact().await?)
+}
+
+#[tokio::test]
+async fn launch_values() -> Result<()> {
+    let worker = near_workspaces::sandbox().await?;
+    let root = worker.root_account()?;
+    let big = NearToken::from_near(20);
+    let holder = subaccount(&root, "holder", big).await?;
+    let [alice, bob, carol, dave] = [
+        subaccount(&root, "alice", big).await?,
+        subaccount(&root, "bob", big).await?,
+        subaccount(&root, "carol", big).await?,
+        subaccount(&root, "dave", big).await?,
+    ];
+    let ids = [holder.id(), alice.id(), bob.id(), carol.id(), dave.id()];
+    let mut n = 0;
+
+    // The v1.0 launch values; 400-block hunts in 100-block steps (4, 3, 2, 1 steps left).
+    let supply = 1_000_000 * C;
+    let launched = supply + 1_000 * C;
+    let cfg = launch_config(1_000 * C, 400, 100);
+    let (cal, _) = deploy(&root, "cal", holder.id(), supply, 1_000 * C, cfg.clone()).await?;
+    ensure!(view(&cal, "config", json!({})).await? == cfg);
+    for h in [&alice, &bob, &carol] {
+        ensure!(register(&cal, h).await?.is_success());
+        ensure!(send(&cal, &holder, h.id(), 10_000 * C).await?.is_success());
+    }
+    held(&mut n, "launch values are fixed at init and readable: rule B, tribute 1%, fill fee up to +10%, burn 10%, HP x1.1 / x0.7",
+        &format!("config() == {cfg}"));
+
+    // Edge cases at the boundary: nothing to lock, no 1 yocto, more than the balance. None changes state.
+    let zero = commit(&cal, &alice, 0).await?;
+    let no_yocto = call(&cal, &alice, "commit", json!({"amount": (10 * C).to_string()}), NearToken::from_yoctonear(0)).await?;
+    let too_much = commit(&cal, &alice, 10_000 * C).await?;
+    ensure!(balance(&cal, alice.id()).await? == 10_000 * C);
+    let t = conservation(&cal, &ids, launched).await?;
+    ensure!(num(&t["locked"])? == 0 && num(&t["hoard"])? == 1_000 * C);
+    held(&mut n, "refused commits change nothing: zero stake, missing 1 yocto, stake + fee above the balance",
+        &format!("commit(0): panic {}; no deposit: panic {}; 10000 of 10000 (fee on top): panic {}; alice still 10000 CAL, locked 0",
+            panic_of(&zero), panic_of(&no_yocto), panic_of(&too_much)));
+
+    // Hunt 0, HP 1000. Alice commits 600 into an empty bar; bob 500 later, 400 to fill it and 100 past it.
+    let h0 = view(&cal, "current_hunt", json!({})).await?;
+    let deadline = h0["deadline"].as_u64().unwrap();
+    ensure!(returned(&commit(&cal, &alice, 600 * C).await?)? == 600 * C);
+    let fee_a = 10_000 * C - 600 * C - balance(&cal, alice.id()).await?;
+    pass_deadline(&worker, deadline - 150).await?;
+    ensure!(returned(&commit(&cal, &bob, 500 * C).await?)? == 500 * C, "rule B takes stake past HP");
+    let fee_b = 10_000 * C - 500 * C - balance(&cal, bob.id()).await?;
+    ensure!(fee_a == 24 * C && fee_a == calydon::fill_fee(0, 600 * C, 1_000 * C, 100, 1_000), "alice fee {fee_a}");
+    ensure!(fee_b == 47 * C && fee_b == calydon::fill_fee(600 * C, 500 * C, 1_000 * C, 100, 1_000), "bob fee {fee_b}");
+    let entry = |who: &near_workspaces::Account| view(&cal, "entry", json!({"hunt": 0, "account_id": who.id()}));
+    let (wa, wb) = (num(&entry(&alice).await?["weight"])?, num(&entry(&bob).await?["weight"])?);
+    ensure!(wa == 4 * 600 * C && wb == 2 * 500 * C, "weights {wa} {wb}");
+    let t = conservation(&cal, &ids, launched).await?;
+    ensure!(num(&t["hoard"])? == 1_071 * C);
+    held(&mut n, "the entry fee rises with the bar's fill and goes into the hoard; rule B weights a commit by the steps left",
+        &format!("alice 600 into an empty bar: fee 24 CAL (1% + 10% x 0.3 average fill); bob 500 at 600/1000: fee 47 CAL (400 at 1% + 10% x 0.8, 100 past HP at 11%); weights 600x4, 500x2; hoard 1000 + 71 = 1071 CAL"));
+
+    pass_deadline(&worker, deadline).await?;
+    ensure!(resolve(&cal, &dave, 0).await?.json::<String>()? == "Slain");
+    let next = view(&cal, "current_hunt", json!({})).await?;
+    ensure!(num(&next["hp"])? == 1_100 * C);
+    let pot = 1_071 * C;
+    let pa = returned(&claim(&cal, &alice, 0).await?)?;
+    let pb = returned(&claim(&cal, &bob, 0).await?)?;
+    let twice = claim(&cal, &bob, 0).await?;
+    ensure!(pa == 600 * C + calydon::share(pot, wa, wa + wb) && pb == 500 * C + calydon::share(pot, wb, wa + wb));
+    let t = conservation(&cal, &ids, launched).await?;
+    let dust = num(&t["hoard"])?;
+    ensure!(dust == pot - (pa - 600 * C) - (pb - 500 * C) && num(&t["unclaimed"])? == 0);
+    held(&mut n, "slain under the launch values: shares of the 1071 CAL pot by weight, rounded down, once each; next HP x1.1",
+        &format!("alice {} = 600 + {:.4} CAL; bob {} = 500 + {:.4} CAL; second claim: panic {}; dust {dust} yocto back in the hoard; hunt 1 HP 1100 CAL",
+            pa, (pa - 600 * C) as f64 / C as f64, pb, (pb - 500 * C) as f64 / C as f64, panic_of(&twice)));
+
+    // Hunt 1, HP 1100: carol alone commits 300 -> escaped. Her fee stays in the hoard; 10% of the stake burns.
+    ensure!(returned(&commit(&cal, &carol, 300 * C).await?)? == 300 * C);
+    let fee_c = calydon::fill_fee(0, 300 * C, 1_100 * C, 100, 1_000);
+    ensure!(balance(&cal, carol.id()).await? == 10_000 * C - 300 * C - fee_c);
+    let supply_before = num(&view(&cal, "totals", json!({})).await?["supply"])?;
+    pass_deadline(&worker, next["deadline"].as_u64().unwrap()).await?;
+    ensure!(resolve(&cal, &dave, 1).await?.json::<String>()? == "Escaped");
+    let h2 = view(&cal, "current_hunt", json!({})).await?;
+    ensure!(num(&h2["hp"])? == 770 * C);
+    let pc = returned(&claim(&cal, &carol, 1).await?)?;
+    let t = conservation(&cal, &ids, launched).await?;
+    ensure!(pc == 270 * C && supply_before - num(&t["supply"])? == 30 * C);
+    ensure!(num(&t["hoard"])? == dust + fee_c, "the escaped hunt's fees stay in the hoard");
+    held(&mut n, "escaped under the launch values: stake - 10% back, the 10% burns, the entry fee stays in the hoard; next HP x0.7",
+        &format!("carol 300 -> 270 back, supply -30 CAL; hoard = dust + carol's fee {:.6} CAL; hunt 2 HP 770 CAL", fee_c as f64 / C as f64));
+
+    // I3 on chain with the fill fee: 600 from one account vs 300 + 300 from two, after carol's 400.
+    let mut nets = vec![];
+    for (name, split) in [("whole", false), ("split", true)] {
+        let (cal, _) = deploy(&root, name, holder.id(), 1_000_000, 2, launch_config(1_000, 400, 100)).await?;
+        let mine: Vec<_> = if split { vec![&bob, &dave] } else { vec![&alice] };
+        for h in mine.iter().chain([&&carol]) {
+            ensure!(register(&cal, h).await?.is_success());
+            ensure!(send(&cal, &holder, h.id(), 10_000).await?.is_success());
+        }
+        ensure!(returned(&commit(&cal, &carol, 400).await?)? == 400);
+        for h in &mine {
+            let part = 600 / mine.len() as u128;
+            ensure!(returned(&commit(&cal, h, part).await?)? == part);
+        }
+        let d = view(&cal, "current_hunt", json!({})).await?["deadline"].as_u64().unwrap();
+        pass_deadline(&worker, d).await?;
+        ensure!(resolve(&cal, &carol, 0).await?.json::<String>()? == "Slain");
+        let mut net = 0i128;
+        for h in &mine {
+            ensure!(claim(&cal, h, 0).await?.is_success());
+            net += balance(&cal, h.id()).await? as i128 - 10_000;
+        }
+        nets.push(net);
+    }
+    ensure!(nets[1] <= nets[0], "split {} > whole {}", nets[1], nets[0]);
+    held(&mut n, "I3 on chain with the fill fee: 600 from one account vs 300 + 300 from two accounts does not pay more",
+        &format!("one account: net {:+} yocto; two accounts: net {:+} yocto (fill fees add up the same and round up; shares round down)", nets[0], nets[1]));
+    held(&mut n, "I1 conservation held after every step under the launch values",
+        &format!("final supply {} = launched {launched} - burned {}", num(&t["supply"])?, num(&t["burned"])?));
+    println!("Calydon verify (launch values: R2 fee, rule B, HP x1.1/x0.7): {n} claims held, 0 broken.");
+    Ok(())
+}
