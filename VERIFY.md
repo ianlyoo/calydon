@@ -20,7 +20,7 @@ execution outcomes; if a claim were false, the command would exit non-zero.
 Expected final lines of the sandbox test file:
 
 ```text
-Calydon verify (rule B, splitting): 2 claims held, 0 broken.
+Calydon verify (rule B and splitting, arithmetic-test values): 2 claims held, 0 broken.
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 

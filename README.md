@@ -53,14 +53,14 @@ the committed `res/calydon.wasm` (the bytes deployed on testnet) and asserts eve
 contract state, balances and execution outcomes, checking conservation (I1) after every step. The
 first run downloads the crates and the sandbox binary. Nothing in it touches testnet.
 
-Expected output (abridged; it took 5 min 42 s with a warm cargo cache on an Apple Silicon Mac):
+Expected output (abridged), from a fresh clone of this repository on 2026-11-08 on an Apple Silicon Mac (6 min 3 s, crates already downloaded, compilation included):
 
 ```text
 test tests::fill_fees ... ok
 test tests::m2_counterexample_is_the_safe_direction ... ok
 test tests::rounding_helpers ... ok
 test tests::splitting_never_pays_more ... ok
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
 
 test execute_testnet ... ignored, uses NEAR testnet and the faucet; run with `npm run execute-testnet`
 
@@ -75,17 +75,17 @@ HELD  6  I3 on chain with the fill fee: 600 from one account vs 300 + 300 from t
 HELD  7  I1 conservation held after every step under the launch values
 Calydon verify (launch values: R2 fee, rule B, HP x1.1/x0.7): 7 claims held, 0 broken.
 ok
-test rule_a_hunts ... HELD  1  every parameter is fixed at init and readable; the wasm exports no setter, admin or pause method (I4; ...)
+test rule_a_hunts ... HELD  1  every parameter is fixed at init and readable; the wasm exports no setter, admin or pause method (I4; contract_source_metadata is the sdk's read-only NEP-330 view)
          observed: config() == init args; 21 exports: claim, commit, config, contract_source_metadata, current_hunt, entry, ft_balance_of, ft_metadata, ft_resolve_transfer, ft_total_supply, ft_transfer, ft_transfer_call, hunt, new, resolve, storage_balance_bounds, storage_balance_of, storage_deposit, storage_unregister, storage_withdraw, totals
 ...
-Calydon verify (rule A): 9 claims held, 0 broken.
+Calydon verify (rule A, arithmetic-test values: no fill fee, HP x1.25/x0.8): 9 claims held, 0 broken.
 ok
 test rule_b_and_splitting ... HELD  1  rule B: no cap; the hoard is shared by stake x steps left, so an earlier commit earns more per token
 HELD  2  I3 on chain: splitting a stake of 2 into 1 + 1 does not pay more (shares round down, tributes round up)
-Calydon verify (rule B, splitting): 2 claims held, 0 broken.
+Calydon verify (rule B and splitting, arithmetic-test values): 2 claims held, 0 broken.
 ok
 
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 100.38s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 98.21s
 ```
 
 `rule_a_hunts` and `rule_b_and_splitting` run the same wasm with arithmetic-test values (no fill fee,
