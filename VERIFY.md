@@ -159,7 +159,7 @@ A recorded session with links is in [README §4](README.md#4-play-on-testnet-fro
 
 | Claim | How | Expected |
 |---|---|---|
-| the page is static and runs locally | `npm run page`, open `http://127.0.0.1:8494/status/` | the current hunt of the v1.2 instance, its HP bar, deadline line and hunt log, without signing in; a hunt past its deadline that nobody resolved shows `closed (unresolved)` |
+| the page is static and runs locally | `npm run page`, open `http://127.0.0.1:8494/status/` | the current hunt of the v1.2 instance as a boar card (health left, time left and step, the hunters with weights, First Spear, hoard) and the hunt log, without signing in; a hunt past its deadline that nobody resolved shows `closed (unresolved)` in the card and in the log, the current hunt's row included |
 | it signs in with a testnet wallet | `Sign in with Intear Wallet (testnet)` | `Signed in as <account>`, your CAL balance, registration and starter status |
 | each call is signed in the wallet and lands on chain | the page's `storage_deposit`, `Get starter CAL`, `Commit`, `Resolve this hunt`, `Claim` buttons | `<call>: done. https://testnet.nearblocks.io/txns/<hash>` under your account name |
 | the commit preview is the contract's arithmetic | type a stake | `You pay` = stake + the fee (in step 1 the flat 1%; from step 2 the fee integrated over the fill the stake covers, the same `fill_fee` as the contract), weight = stake × steps left, and the claim if slain or escaped; during step 1 an `If it lands after step 1` row with the step-2 fee and weight |

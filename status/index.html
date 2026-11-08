@@ -3,84 +3,301 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Calydon (NEAR testnet)</title>
+<title>Calydon: hunt the boar together (NEAR testnet)</title>
 <link rel="icon" href="data:,">
 <style>
-  body { font: 15px/1.45 system-ui, sans-serif; max-width: 820px; margin: 2em auto; padding: 0 1em; color: #222; }
-  h1 { font-size: 1.4em; margin-bottom: 0; } h2 { font-size: 1.15em; margin-top: 1.6em; }
-  .muted { color: #666; font-size: .9em; }
-  .bar { position: relative; height: 28px; background: #eee; border-radius: 4px; overflow: hidden; margin: .4em 0; }
-  .fill { height: 100%; background: #b5651d; }
-  .bar span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 600; }
-  dl { display: grid; grid-template-columns: max-content 1fr; gap: .2em 1em; }
-  dt { color: #666; } dd { margin: 0; font-variant-numeric: tabular-nums; }
-  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
-  th, td { text-align: right; padding: .25em .5em; border-bottom: 1px solid #eee; }
-  th:first-child, td:first-child { text-align: left; }
-  .Slain { color: #1a7f37; } .Escaped { color: #b42318; } td.closed { color: #b5651d; }
-  .panel { border: 1px solid #ddd; border-radius: 6px; padding: .8em 1em; margin: .8em 0; }
-  button { font: inherit; padding: .3em .8em; margin: .15em .3em .15em 0; cursor: pointer; }
-  button:disabled { cursor: not-allowed; opacity: .5; }
-  input { font: inherit; width: 9em; padding: .25em; }
-  #deadline.closed { color: #b42318; font-weight: 600; } #deadline.soon { color: #b5651d; font-weight: 600; }
-  #msg { white-space: pre-wrap; } #msg.err { color: #b42318; }
-  .preview td, .preview th { border: 0; padding: .1em .5em; }
-  td.who { font-size: .8em; overflow-wrap: anywhere; max-width: 14em; }
-  #log td:nth-child(2), #log td:nth-child(3), #log td:nth-child(6) { white-space: nowrap; }
+  /* Black-glaze ground and terracotta figures, as on the vases that show the Calydonian hunt.
+     Marcellus (SIL OFL 1.1, fonts/Marcellus-OFL.txt) for names and figures; the system face for the rest. */
+  @font-face { font-family: "Marcellus"; src: url("fonts/Marcellus-Regular.ttf") format("truetype"); font-display: swap; }
+  :root {
+    --bg: #15120e; --surface: #1d1914; --raised: #26211a; --line: rgba(239, 228, 208, .1); --line2: rgba(239, 228, 208, .18);
+    --text: #efe4d0; --text2: #c4b69c; --muted: #9a8c75;
+    --clay: #c8693a; --clay-deep: #8f4524; --bronze: #c9a25a; --olive: #9cb46f; --brick: #e07a5f;
+    --display: "Marcellus", "Iowan Old Style", Georgia, serif;
+    --ease: cubic-bezier(.2, .8, .2, 1);
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); color-scheme: dark; }
+  body { margin: 0; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); }
+  ::selection { background: var(--clay); color: #170f0a; }
+  a { color: var(--text); text-underline-offset: 3px; }
+  button, input { font: inherit; }
+  :focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  [hidden] { display: none !important; }
+
+  header { border-bottom: 1px solid var(--line); }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 16px; padding-bottom: 16px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .brand b { font: 400 28px/1 var(--display); letter-spacing: .01em; }
+  .brand span { color: var(--muted); font-size: 14px; }
+  .acctbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 15px; }
+  .acctbar .acct { color: var(--text2); overflow-wrap: anywhere; }
+
+  .btn { border: 1px solid var(--line2); background: var(--raised); color: var(--text); border-radius: 8px; padding: 8px 16px; cursor: pointer;
+    transition: background-color .15s var(--ease), border-color .15s var(--ease), transform .1s var(--ease); }
+  .btn:hover { background: #302920; border-color: rgba(239, 228, 208, .28); }
+  .btn:active { transform: scale(.98); }
+  .btn.primary { background: var(--text); color: #1a140e; border-color: var(--text); font-weight: 600; }
+  .btn.primary:hover { background: #fff6e6; }
+  .btn:disabled, .btn.primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+  .btn.small { padding: 4px 12px; font-size: 14px; }
+
+  #you { padding: 12px 0 0; display: flex; gap: 24px; flex-wrap: wrap; align-items: center; font-size: 15px; color: var(--text2); }
+  #you .fig { color: var(--text); }
+  #msg { font-size: 14px; color: var(--muted); padding-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.5em; }
+  #msg.err { color: var(--brick); }
+
+  /* The beast card: the one rich object on the page. */
+  .beast { margin-top: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); overflow: hidden; }
+  .art { background: #0f0d0a; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; border-right: 1px solid var(--line); }
+  .art h1 { margin: 0; font: 400 40px/1.1 var(--display); }
+  .art h1 small { display: block; font: 15px/1.4 system-ui, sans-serif; color: var(--muted); margin-top: 8px; }
+  .art svg { width: 100%; height: auto; display: block; }
+  .state { font: 400 22px/1.2 var(--display); color: var(--text2); }
+  .state.slain { color: var(--olive); } .state.escaped, .state.closed { color: var(--brick); }
+  .fight { padding: 24px; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+  .hp-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .hp-left { font: 400 34px/1 var(--display); }
+  .hp-left small { font: 15px/1.4 system-ui, sans-serif; color: var(--muted); margin-left: 8px; }
+  .health { height: 20px; border-radius: 10px; background: #2a1d15; border: 1px solid var(--line); overflow: hidden; margin-top: 12px; }
+  .health i { display: block; height: 100%; width: 100%; background: linear-gradient(#d4743f, #b85d31); border-radius: 10px 0 0 10px;
+    transition: width .8s var(--ease); }
+  .hp-sub { margin-top: 8px; color: var(--text2); font-size: 15px; }
+
+  .clock { display: grid; grid-template-columns: auto 1fr; gap: 4px 20px; align-items: center; }
+  .clock .t { font: 400 30px/1 var(--display); grid-row: span 2; min-width: 4.5em; }
+  .clock .t.closed { color: var(--brick); }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .steps span { height: 8px; border-radius: 4px; background: var(--raised); }
+  .steps span.past { background: #3a3128; } .steps span.now { background: var(--bronze); }
+  .clock .say { font-size: 15px; color: var(--text2); }
+
+  .pair { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px; }
+  .box { background: var(--raised); border-radius: 12px; padding: 16px; min-width: 0; }
+  .box h2 { margin: 0 0 8px; font: 400 18px/1.3 var(--display); color: var(--text); }
+  .hunters { width: 100%; border-collapse: collapse; font-size: 15px; table-layout: fixed; }
+  .hunters col.n { width: 46%; } .hunters col.s { width: 18%; }
+  .hunters td { padding: 6px 0; border-top: 1px solid var(--line); vertical-align: middle; }
+  .hunters td + td { text-align: right; padding-left: 12px; white-space: nowrap; }
+  .hunters th { font-weight: 400; font-size: 13px; color: var(--muted); text-align: right; padding: 0 0 4px 12px; }
+  .hunters th:first-child { text-align: left; padding-left: 0; }
+  .name .id { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+  .name .id b { font-weight: 500; color: var(--text); } .name .id i { font-style: normal; }
+  .name .tags { display: flex; gap: 8px; align-items: center; margin-top: 2px; }
+  .name .tags:empty { display: none; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 6px; border-radius: 6px;
+    background: rgba(201, 162, 90, .14); color: var(--bronze); font-size: 13px; white-space: nowrap; vertical-align: 1px; }
+  .badge svg { width: 14px; height: 14px; }
+  .you-tag { color: var(--text2); font-size: 13px; }
+  .empty { color: var(--muted); font-size: 15px; padding-top: 4px; }
+
+  .hoard { display: flex; gap: 16px; align-items: center; }
+  .hoard svg { width: 56px; height: 56px; flex: none; }
+  .hoard .fig { font: 400 30px/1 var(--display); color: var(--bronze); }
+  .hoard p { margin: 8px 0 0; font-size: 14px; color: var(--text2); }
+
+  .commit { border-top: 1px solid var(--line); padding-top: 20px; }
+  .commit form { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .commit label { font: 400 20px/1 var(--display); }
+  .commit input { width: 8em; background: var(--bg); color: var(--text); border: 1px solid var(--line2); border-radius: 8px; padding: 8px 12px; caret-color: var(--clay); }
+  #commitHint { font-size: 14px; color: var(--muted); }
+  .quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+  .quick div { font-size: 13px; color: var(--muted); }
+  .quick b { display: block; font-weight: 500; font-size: 17px; color: var(--text); margin-top: 2px; }
+  #quickNote { margin-top: 12px; font-size: 14px; color: var(--text2); }
+  #closedNote { margin-top: 12px; font-size: 15px; color: var(--text2); }
+
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--text2); font-size: 15px; }
+  summary:hover { color: var(--text); }
+  .preview { border-collapse: collapse; margin-top: 8px; font-size: 14px; }
+  .preview th { text-align: left; font-weight: 500; color: var(--text2); padding: 4px 16px 4px 0; vertical-align: top; white-space: nowrap; }
+  .preview td { padding: 4px 0; color: var(--text); }
+  #previewNote { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+  section.plain { margin-top: 40px; }
+  section.plain > h2 { font: 400 24px/1.2 var(--display); margin: 0 0 12px; }
+  .how { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px solid var(--line2); }
+  .how div { padding: 16px 24px 0 0; }
+  .how div + div { padding-left: 24px; border-left: 1px solid var(--line); }
+  .how b { display: block; font: 400 19px/1.3 var(--display); margin-bottom: 4px; }
+  .how p { margin: 0; color: var(--text2); font-size: 15px; max-width: 34ch; }
+
+  .table { overflow-x: auto; }
+  table.log { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .log th { font-weight: 400; font-size: 13px; color: var(--muted); text-align: right; padding: 0 12px 8px; }
+  .log td { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); white-space: nowrap; }
+  .log th:first-child, .log td:first-child { text-align: left; padding-left: 0; }
+  .log td.who { color: var(--text2); text-align: left; } .log th:last-child { text-align: left; } .log td.who i { font-style: normal; color: var(--muted); }
+  .Slain { color: var(--olive); } .Escaped, .closed { color: var(--brick); }
+
+  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 24px; margin: 12px 0 0; font-size: 15px; }
+  dl.facts dt { color: var(--muted); } dl.facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+  code { font: 14px/1.4 ui-monospace, Menlo, monospace; color: var(--text2); overflow-wrap: anywhere; }
+  footer { margin: 48px 0 32px; color: var(--muted); font-size: 14px; }
+
+  @media (max-width: 880px) {
+    .beast { grid-template-columns: 1fr; }
+    .art { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; align-items: center; }
+    .art svg { width: 44%; }
+    .art h1 { font-size: 30px; }
+    .pair { grid-template-columns: 1fr; }
+    .quick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .how { grid-template-columns: 1fr; }
+    .how div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); margin-top: 16px; }
+    .clock { grid-template-columns: 1fr; } .clock .t { grid-row: auto; }
+  }
+  @media (max-width: 480px) {
+    .wrap { padding: 0 16px; }
+    .art { flex-direction: column; align-items: stretch; } .art svg { width: 100%; }
+    .fight, .art { padding: 16px; }
+    .hp-left { font-size: 28px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .health i, .btn { transition: none; } }
 </style>
 </head>
 <body>
-<h1>Calydon</h1>
-<div class="muted">A memecoin you hunt together, on NEAR testnet. State is read from the public testnet RPC;
-  transactions are signed in your wallet. Contract <code id="contract">…</code> · <span id="updated"></span></div>
-
-<div class="panel" id="you">
-  <div id="signedOut"><button id="signIn">Sign in with Intear Wallet (testnet)</button>
-    <span class="muted">Opens wallet.intear.tech; any testnet account works (import one there by private key or seed phrase).
-    Commits, starter, resolve and storage_deposit attach NEAR, so each opens a wallet window to approve.</span></div>
-  <div id="signedIn" hidden>
-    Signed in as <b id="me"></b> <button id="signOut">Sign out</button>
-    <dl>
-      <dt>CAL balance</dt><dd id="myBal">…</dd>
-      <dt>Registered with the token</dt><dd><span id="myReg">…</span> <button id="register" hidden>storage_deposit</button></dd>
-      <dt>Starter</dt><dd><span id="myStarter">…</span> <button id="starter" hidden>Get starter CAL</button></dd>
-    </dl>
+<header>
+  <div class="wrap">
+    <div class="brand"><b>Calydon</b><span>A memecoin you hunt together · NEAR testnet</span></div>
+    <div class="acctbar">
+      <span id="signedOut"><button class="btn primary" id="signIn">Sign in with Intear Wallet</button></span>
+      <span id="signedIn" hidden><span class="acct" id="me"></span> <button class="btn small" id="signOut">Sign out</button></span>
+    </div>
   </div>
-  <div id="msg" class="muted"></div>
-</div>
+</header>
 
-<h2 id="title">Current hunt</h2>
-<div class="bar"><div class="fill" id="fill" style="width:0"></div><span id="barText"></span></div>
-<div id="deadline"></div>
-<dl>
-  <dt>Committed</dt><dd id="committed"></dd>
-  <dt>HP</dt><dd id="hp"></dd>
-  <dt>First Spear</dt><dd id="spear"></dd>
-  <dt>Hoard</dt><dd id="hoard"></dd>
-  <dt>Supply</dt><dd id="supply"></dd>
-  <dt>Burned so far</dt><dd id="burned"></dd>
-  <dt>Starter bucket left</dt><dd id="bucket"></dd>
-  <dt>Access keys on the contract</dt><dd id="keys"></dd>
-</dl>
-<button id="resolve" hidden>Resolve this hunt</button>
+<main class="wrap">
+  <div id="you" hidden>
+    <span>Balance <span class="fig num" id="myBal">…</span></span>
+    <span>Registered <span class="fig" id="myReg">…</span> <button class="btn small" id="register" hidden>Register (storage_deposit)</button></span>
+    <span>Starter <span class="fig" id="myStarter">…</span> <button class="btn small" id="starter" hidden>Get 1,000 CAL starter</button></span>
+  </div>
+  <div id="msg"></div>
 
-<div class="panel" id="commitPanel">
-  <b>Commit</b> <input id="stake" type="text" inputmode="decimal" value="100"> CAL
-  <button id="commit" disabled>Commit</button> <span class="muted" id="commitHint"></span>
-  <table class="preview"><tbody id="preview"></tbody></table>
-  <div class="muted" id="previewNote"></div>
-</div>
+  <article class="beast" id="beast">
+    <div class="art">
+      <h1 id="title">The Calydonian Boar<small>Hunt #…</small></h1>
+      <!-- A red-figure boar, drawn for this page. -->
+      <svg viewBox="0 0 220 128" role="img" aria-label="The boar">
+        <g fill="#8f4524"><path d="M84 100 L86 119 L93 119 L95 101 Z"/><path d="M138 100 L139 119 L146 119 L148 99 Z"/></g>
+        <path fill="#c8693a" d="M10 78 Q7 83 8 88 Q14 94 26 93 L46 96 Q58 104 66 102 L67 119 L75 119 L78 104 Q110 110 146 104 L150 119 L158 119 L160 100 Q178 94 182 77 L194 83 L197 79 L184 70 Q172 50 141 44 L131 40 L125 29 L119 39 L112 23 L106 37 L98 19 L92 35 L84 22 L80 38 Q66 44 53 52 Q40 57 30 64 Q19 70 10 78 Z"/>
+        <path fill="#c8693a" d="M53 53 L59 35 L68 50 Z"/>
+        <g fill="none" stroke="#15120e" stroke-width="1.6" stroke-linecap="round">
+          <path d="M86 50 Q98 74 87 100"/><path d="M151 54 Q165 74 155 98"/><path d="M84 44 Q110 39 136 47"/>
+          <path d="M44 74 Q54 80 52 92"/><path d="M106 76 Q122 80 136 75"/><path d="M58 40 L61 47"/>
+        </g>
+        <circle cx="38" cy="68" r="2.3" fill="#15120e"/>
+        <path d="M25 90 Q18 80 29 75" fill="none" stroke="#efe4d0" stroke-width="2.8" stroke-linecap="round"/>
+        <path d="M4 120 H216" stroke="rgba(239,228,208,.18)" stroke-width="1"/>
+      </svg>
+      <div class="state" id="state">…</div>
+    </div>
 
-<div class="panel" id="entriesPanel" hidden>
-  <b>Your entries</b>
-  <table><thead><tr><th>Hunt</th><th>Stake</th><th>Weight</th><th>Outcome</th><th>Claim pays</th><th></th></tr></thead>
-  <tbody id="entries"></tbody></table>
-  <div class="muted">A claim also sends back the entry deposit (NEAR) your first commit to that hunt attached, and removes the entry from the contract (that frees the storage the deposit paid for), so claimed entries leave this list.</div>
-</div>
+    <div class="fight">
+      <div>
+        <div class="hp-head">
+          <div class="hp-left num" id="hpLeft">…</div>
+        </div>
+        <div class="health" role="progressbar" aria-label="Health left" aria-valuemin="0" aria-valuemax="100" id="healthBar"><i id="health"></i></div>
+        <div class="hp-sub num" id="hpSub"></div>
+      </div>
 
-<h2>Hunt log</h2>
-<table><thead><tr><th>Hunt</th><th>HP</th><th>Committed</th><th>Hunters</th><th>Outcome</th><th>Pot</th><th>Claims</th><th>First Spear</th></tr></thead>
-<tbody id="log"></tbody></table>
+      <div class="clock">
+        <div class="t num" id="clock">…</div>
+        <div class="steps" id="steps"><span></span><span></span><span></span><span></span></div>
+        <div class="say" id="deadline"></div>
+      </div>
+
+      <div class="pair">
+        <div class="box">
+          <h2 id="huntersTitle">Hunters in this hunt</h2>
+          <table class="hunters num"><colgroup><col class="n"><col class="s"><col class="s"><col class="s"></colgroup><thead><tr><th>Hunter</th><th>Stake</th><th>Weight</th><th>Share</th></tr></thead><tbody id="hunters"></tbody></table>
+          <div class="empty" id="huntersEmpty" hidden></div>
+        </div>
+        <div class="box">
+          <h2>Hoard</h2>
+          <div class="hoard">
+            <!-- A krater of coins. -->
+            <svg viewBox="0 0 72 72" aria-hidden="true">
+              <path d="M14 22 H58 Q58 34 50 40 Q56 46 54 58 L48 64 H24 L18 58 Q16 46 22 40 Q14 34 14 22 Z" fill="#26211a" stroke="#c9a25a" stroke-width="1.6"/>
+              <path d="M14 22 Q6 22 8 32 Q10 38 20 38 M58 22 Q66 22 64 32 Q62 38 52 38" fill="none" stroke="#c9a25a" stroke-width="1.6"/>
+              <ellipse cx="30" cy="20" rx="7" ry="2.6" fill="#c9a25a"/><ellipse cx="42" cy="18" rx="7" ry="2.6" fill="#b08a46"/><ellipse cx="36" cy="14" rx="7" ry="2.6" fill="#d8b46c"/>
+              <path d="M22 48 H50" stroke="#c9a25a" stroke-width="1" opacity=".6"/>
+            </svg>
+            <div><div class="fig num" id="hoard">…</div><p>Shared by weight among the hunters if the boar falls. If it escapes, it waits for the next hunt.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="commit" id="commitPanel">
+        <form onsubmit="return false">
+          <label for="stake">Commit</label>
+          <input id="stake" type="text" inputmode="decimal" value="100" class="num" autocomplete="off"> <span class="muted">CAL</span>
+          <button class="btn primary" id="commit" disabled>Commit</button>
+          <button class="btn" id="resolve" hidden>Resolve this hunt</button>
+          <span id="commitHint"></span>
+        </form>
+        <div class="quick num" id="quick">
+          <div>You pay<b id="qPay">…</b></div><div>Weight<b id="qWeight">…</b></div>
+          <div>If it falls<b id="qSlain">…</b></div><div>If it escapes<b id="qEscaped">…</b></div>
+        </div>
+        <div id="quickNote"></div>
+        <div id="closedNote" hidden></div>
+        <details id="fullPreview"><summary>Full preview of this commit</summary>
+          <table class="preview num"><tbody id="preview"></tbody></table>
+          <div id="previewNote"></div>
+        </details>
+      </div>
+    </div>
+  </article>
+
+  <section class="plain" aria-labelledby="howTitle">
+    <h2 id="howTitle">How a hunt works</h2>
+    <div class="how">
+      <div><b>Commit before the deadline</b><p>Lock CAL in the current hunt. Weight is stake × steps left, so an early spear counts up to <span data-cfg="steps">4</span> times. The first commit takes First Spear.</p></div>
+      <div><b>Reach the HP: the boar falls</b><p>Each hunter claims the stake back plus a share of the hoard by weight. The next boar has <span data-cfg="up">1.1</span>× the HP.</p></div>
+      <div><b>Miss it: the boar escapes</b><p>Each hunter claims the stake minus <span data-cfg="burn">10</span>%, and that part burns, so the supply falls. The next boar has <span data-cfg="down">0.7</span>× the HP.</p></div>
+    </div>
+  </section>
+
+  <section class="plain" id="entriesPanel" hidden>
+    <h2>Your hunts</h2>
+    <div class="table"><table class="log"><thead><tr><th>Hunt</th><th>Stake</th><th>Weight</th><th>Outcome</th><th>Claim pays</th><th></th></tr></thead>
+    <tbody id="entries"></tbody></table></div>
+    <p class="muted" style="font-size:14px">A claim also sends back the NEAR entry deposit your first commit to that hunt attached and removes the entry from the contract, so claimed hunts leave this list.</p>
+  </section>
+
+  <section class="plain">
+    <h2>Hunt log</h2>
+    <div class="table"><table class="log"><thead><tr><th>Hunt</th><th>HP</th><th>Committed</th><th>Hunters</th><th>Outcome</th><th>Pot</th><th>Claims</th><th>First Spear</th></tr></thead>
+    <tbody id="log"></tbody></table></div>
+  </section>
+
+  <section class="plain">
+    <details id="details"><summary>Numbers and contract</summary>
+      <dl class="facts num">
+        <dt>Committed</dt><dd id="committed"></dd>
+        <dt>HP</dt><dd id="hp"></dd>
+        <dt>Total weight</dt><dd id="weight"></dd>
+        <dt>First Spear</dt><dd id="spear"></dd>
+        <dt>Supply</dt><dd id="supply"></dd>
+        <dt>Burned so far</dt><dd id="burned"></dd>
+        <dt>Unclaimed</dt><dd id="unclaimed"></dd>
+        <dt>Starter bucket left</dt><dd id="bucket"></dd>
+        <dt>Access keys on the contract</dt><dd id="keys"></dd>
+        <dt>Contract</dt><dd><code id="contract">…</code></dd>
+        <dt>Read at</dt><dd id="updated"></dd>
+      </dl>
+      <p class="muted" style="font-size:14px;max-width:72ch">State is read from the public testnet RPC; transactions are signed in your wallet (wallet.intear.tech; any testnet account works). Commits, the starter, resolve and storage_deposit attach NEAR, so each opens a wallet window to approve.</p>
+    </details>
+  </section>
+  <footer>Calydon v1.2.1 · NEAR testnet only · <a href="https://github.com/ianlyoo/calydon">github.com/ianlyoo/calydon</a></footer>
+</main>
 
 <script type="module" src="app.js"></script>
 </body>

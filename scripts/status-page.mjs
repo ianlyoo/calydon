@@ -7,7 +7,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { normalize, extname } from "node:path";
 const port = Number(process.env.PORT || 8494);
 
-const types = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json" };
+const types = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".ttf": "font/ttf", ".txt": "text/plain" };
 const allowed = (p) => p === "testnet/run.json" || (p.startsWith("status/") && !p.startsWith("status/vendor-src/"));
 createServer((req, res) => {
   let path = decodeURIComponent(new URL(req.url, "http://x").pathname);

@@ -4,7 +4,8 @@ A memecoin you hunt together, on NEAR. Holders lock their own CAL against a beas
 deadline. If the total reaches the HP, the beast is slain and the hunters share the hoard. If it
 falls short, the beast escapes with 10% of every stake, and that 10% burns.
 
-Status: **v1.2, NEAR testnet only.** The v1.2 instance
+Status: **v1.2.1, NEAR testnet only.** v1.2.1 changes only the page (below); the contract, `res/calydon.wasm`
+and the testnet instance are those of v1.2. The v1.2 instance
 [`cal.calydon-v12-1794130347.testnet`](https://testnet.nearblocks.io/address/cal.calydon-v12-1794130347.testnet)
 was created, deployed and initialised in **one transaction** and has **never had an access key**, so
 no transaction can be signed as that account and its code cannot be replaced. Its code hash equals
@@ -24,6 +25,16 @@ still checks one). What v1.2 changes, each with its check:
 | At most 20 starters per hunt (`starters_per_hunt`, reset when a hunt opens) | `v1_2_storage_starter_transfers` claim 1; `config()` |
 | The page shows "closed (unresolved)" for a hunt past its deadline that nobody resolved yet, the step-1 fee and what a commit pays if it lands after step 1, and starters left this hunt | §3; [docs/browser/](docs/browser/) |
 | Simulation re-run on the v1.2 wasm: 5 launch seeds and a replicator run; whale count for small populations; no NaN for an empty strategy; the replicator writes its summary every generation | §5; MECHANIC.md §3 |
+
+**v1.2.1 (page only, no new instance).** The page now opens on the hunt itself: the boar of the
+current hunt with its health going down as commits land (HP minus committed), the time left and the
+step a commit lands in, every hunter of the hunt with stake, weight and share of the total weight
+(First Spear marked), the hoard, and a three-step "how a hunt works" strip; the full numbers sit
+behind a "Numbers and contract" toggle. The hunt log works out "open" or "closed (unresolved)" from
+the latest block for every row, the current hunt included (v1.2 could leave a closed hunt shown as
+"open", or an empty resolved hunt as "closed (unresolved)", when an RPC read failed or a row had been
+cached). The hunter list and your entries come from one `view_state` read of the contract's entry
+records instead of one `entry` call per hunt, so the page makes fewer RPC calls.
 
 Carried over from v1.1: storage deposits for every record (an entry's is returned by its claim), the
 starter bucket, one-transaction init, First Spear, the browser page with Intear Wallet, the exact
@@ -223,7 +234,7 @@ Calydon page: http://127.0.0.1:8494/status/  (Ctrl-C to stop)
 Open that address (`PORT=<n> npm run page` serves on another port). `status/` is a static page (HTML, one script, and the pinned wallet bundle in
 `status/vendor/`); `npm run page` only serves it and `testnet/run.json` from this machine, and the
 same files can be hosted as they are. Nothing is hosted by this repository. The page reads the
-public testnet RPC every 4 seconds; `?contract=<id>` shows another instance (for example one you
+public testnet RPC every 4 seconds (older hunts with unclaimed entries about once a minute; after a failed read, often a rate limit, it waits up to 32 seconds); `?contract=<id>` shows another instance (for example one you
 launched in §4) and `?rpc=<url>` uses another RPC.
 
 **Wallet.** Sign-in uses NEAR wallet-selector 10.1.4 with the Intear Wallet module
@@ -233,8 +244,15 @@ or seed phrase. MyNearWallet is not offered: since 1 November 2026 it no longer 
 signs transactions. Every call that attaches NEAR (storage_deposit, starter, commit, resolve) opens a
 wallet window to approve; so does claim.
 
+**What the page shows first (v1.2.1):** the current hunt as a boar card: its health left (HP minus
+committed) as a bar, the time left and which of the hunt's steps a commit lands in (so what it weighs),
+every hunter of the hunt with stake, weight and share of the total weight, First Spear marked, and the
+hoard. Below: how a hunt works in three steps, your hunts, the hunt log, and "Numbers and contract"
+(committed, HP, total weight, supply, burned, unclaimed, starter bucket, access keys, contract).
+
 **What the page does, signed in:** your CAL balance; a `storage_deposit` button until you are
-registered; `Get starter CAL` until you took it; `Commit` with a live preview of what you pay (stake
+registered; `Get starter CAL` until you took it; `Commit` with a live preview (the four main numbers
+on the card, every row under "Full preview of this commit") of what you pay (stake
 + the exact entry fee: the flat 1% while the hunt is in step 1, otherwise integrated over the fill your
 stake covers; during step 1 also what the commit pays and weighs if it lands after step 1, since a
 wallet approval can take a minute), the NEAR attached, your weight
@@ -246,7 +264,7 @@ hoard, supply, burned CAL, the starter bucket, the access keys on the contract (
 with each hunt's First Spear; a hunt past its deadline that nobody resolved yet shows as
 "closed (unresolved)".
 
-**One recorded session** ([docs/browser/](docs/browser/), 2026-11-08 18:43–18:54 KST, v1.2 instance): a
+**One recorded session** ([docs/browser/](docs/browser/), 2026-11-08 18:43–18:54 KST, v1.2 instance, the v1.2 page before the v1.2.1 layout): a
 fresh testnet account `player.calydon-v12-1794130347.testnet` (2 NEAR from the launch holder), imported
 into Intear Wallet, signs in on the page, runs `storage_deposit`
 ([2po2EF9B…](https://testnet.nearblocks.io/txns/2po2EF9BfpdWJmzB7M6tguxvxMVcY6buS8gMeUGYL7N3)) and takes its starter
