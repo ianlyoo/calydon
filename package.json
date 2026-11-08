@@ -3,11 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "description": "A memecoin you hunt together on NEAR: commit against the beast's HP before the deadline.",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "verify": "cargo test --locked -- --nocapture --test-threads=1",
     "simulate": "cargo run --locked --release --quiet --example simulate --",
+    "hunt": "cargo run --locked --quiet --example hunt --",
+    "observe-testnet": "node scripts/observe-testnet.mjs",
+    "verify:reproducible": "node scripts/verify-reproducible.mjs",
+    "status-page": "node scripts/status-page.mjs",
+    "execute-testnet": "cargo test --locked --test testnet -- --ignored --nocapture",
     "build-wasm": "bash scripts/build-wasm.sh",
-    "execute-testnet": "cargo test --locked --test testnet -- --ignored --nocapture"
-  }
+    "update-prebuilt": "bash scripts/build-reproducible.sh && cp target/reproducible/calydon.wasm res/ && cd res && shasum -a 256 calydon.wasm > calydon.wasm.sha256 && cat calydon.wasm.sha256"
+  },
+  "license": "MIT"
 }

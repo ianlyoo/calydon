@@ -241,3 +241,73 @@ pub fn exports(wasm: &[u8]) -> Vec<String> {
     out.sort();
     out
 }
+
+/// A testnet launch: `root` (a fresh faucet account) holds the supply, `cal` runs the committed wasm
+/// and has no access key left, each hunter is a subaccount of `root` holding CAL.
+pub struct Launch {
+    pub root: Account,
+    pub cal: Contract,
+    pub hunters: Vec<Account>,
+    /// (step, result) for every transaction, in order.
+    pub steps: Vec<(String, ExecutionFinalResult)>,
+}
+
+pub const TESTNET_RPC: &str = "https://test.rpc.fastnear.com";
+
+pub async fn testnet() -> Result<Worker<near_workspaces::network::Testnet>> {
+    let rpc = std::env::var("CALYDON_TESTNET_RPC").unwrap_or_else(|_| TESTNET_RPC.into());
+    Ok(near_workspaces::testnet().rpc_addr(&rpc).await?)
+}
+
+/// Creates `<prefix>-<unix seconds>.testnet` from the faucet, deploys and initialises `cal.<root>`
+/// with `cfg`, deletes every access key of `cal.<root>` (the lock), then creates and funds the hunters.
+/// Every key is random and saved under `keys` (never printed).
+pub async fn launch_testnet(
+    worker: &Worker<near_workspaces::network::Testnet>,
+    prefix: &str,
+    hunters: &[&str],
+    cfg: Value,
+    supply: u128,
+    hoard: u128,
+    each: u128,
+    keys: &str,
+) -> Result<Launch> {
+    let id = format!("{prefix}-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs());
+    let root = worker
+        .create_root_account_subaccount(id.parse()?, SecretKey::from_random(KeyType::ED25519))
+        .await
+        .context("faucet account creation failed")?
+        .into_result()?;
+    root.store_credentials(keys).await?;
+    let mut steps = vec![];
+    let (cal, init) = deploy(&root, "cal", root.id(), supply, hoard, cfg).await?;
+    steps.push(("init".to_string(), init));
+    let mut lock = cal.as_account().batch(cal.id());
+    for key in cal.view_access_keys().await? {
+        lock = lock.delete_key(key.public_key);
+    }
+    let lock = lock.transact().await?;
+    ensure!(lock.is_success(), "lock failed: {:?}", failures(&lock));
+    ensure!(cal.view_access_keys().await?.is_empty(), "cal still has access keys");
+    steps.push(("lock: delete every access key of the contract account".to_string(), lock));
+    let mut accounts = vec![];
+    for name in hunters {
+        let h = subaccount(&root, name, NearToken::from_millinear(500)).await?;
+        h.store_credentials(keys).await?;
+        steps.push((format!("storage_deposit {}", h.id()), register(&cal, &h).await?));
+        steps.push((format!("ft_transfer {} CAL -> {}", each / 10u128.pow(18), h.id()), send(&cal, &root, h.id(), each).await?));
+        accounts.push(h);
+    }
+    for (step, r) in &steps {
+        ensure!(r.is_success(), "{step} failed: {:?}", failures(r));
+    }
+    Ok(Launch { root, cal, hunters: accounts, steps })
+}
+
+/// Testnet: waits until the chain is past `deadline`.
+pub async fn wait_for(worker: &Worker<near_workspaces::network::Testnet>, deadline: u64) -> Result<()> {
+    while height(worker).await? < deadline {
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    }
+    Ok(())
+}

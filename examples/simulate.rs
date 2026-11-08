@@ -1,5 +1,5 @@
 //! `npm run simulate -- --seed 494 [--hunters 300] [--hunts 60] [--hp0-bps 300] [--burn-bps 1000] [--hoard-bps 100]
-//!   [--hp-up 11000 --hp-down 7000] [--split-k 8] [--set config_field=value ...]`
+//!   [--hp-up 11000 --hp-down 7000] [--split-k 8] [--set config_field=value ...] [--out <file under sim/>]`
 //!
 //! Runs the strategy simulation (hunts 1..=60; hunt 0 is an empty setup hunt) on a local sandbox against the committed
 //! res/calydon.wasm with the v1.0 launch values (`launch_config`), once per reward rule (B = EarlyWeight, the launch rule,
@@ -487,9 +487,12 @@ async fn main() -> Result<()> {
     let levers = if (burn_bps, hoard_bps) == (1_000, 100) { String::new() } else { format!("-burn{burn_bps}-hoard{hoard_bps}") };
     let ctl = if (hp_up, hp_down) == (11_000, 7_000) { String::new() } else { format!("-ctl{hp_up}-{hp_down}") };
     let tags: String = overrides.iter().map(|(k, v)| format!("-{}{v}", k.trim_end_matches("_bps").replace('_', ""))).collect();
-    let name = format!("seed-{seed}-hp{hp0_bps}{levers}{ctl}{tags}.json");
+    let name = match args.iter().position(|a| a == "--out") {
+        Some(i) => args.get(i + 1).context("--out needs a file name under sim/")?.clone(),
+        None => format!("seed-{seed}-hp{hp0_bps}{levers}{ctl}{tags}.json"),
+    };
     let path = format!("{}/sim/{name}", env!("CARGO_MANIFEST_DIR"));
-    std::fs::create_dir_all(format!("{}/sim", env!("CARGO_MANIFEST_DIR")))?;
+    std::fs::create_dir_all(std::path::Path::new(&path).parent().context("path")?)?;
     std::fs::write(&path, serde_json::to_string_pretty(&report)? + "\n")?;
 
     println!("Calydon simulation ({VARIANT}): seed {seed}, {n_hunters} hunters, {n_hunts} hunts, first HP {}% of supply, HP x{}/x{}, burn {}%, launch hoard {}%, wasm {}",

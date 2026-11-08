@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Calydon status (NEAR testnet)</title>
+<style>
+  body { font: 15px/1.45 system-ui, sans-serif; max-width: 760px; margin: 2em auto; padding: 0 1em; color: #222; }
+  h1 { font-size: 1.4em; margin-bottom: 0; }
+  .muted { color: #666; font-size: .9em; }
+  .bar { position: relative; height: 28px; background: #eee; border-radius: 4px; overflow: hidden; margin: .4em 0; }
+  .fill { height: 100%; background: #b5651d; }
+  .bar span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: .2em 1em; }
+  dt { color: #666; } dd { margin: 0; font-variant-numeric: tabular-nums; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: .25em .5em; border-bottom: 1px solid #eee; }
+  th:first-child, td:first-child { text-align: left; }
+  .Slain { color: #1a7f37; } .Escaped { color: #b42318; }
+</style>
+</head>
+<body>
+<h1>Calydon</h1>
+<div class="muted">A memecoin you hunt together. Read live from NEAR testnet RPC; nothing here can sign.
+  Contract <code id="contract">…</code> · <span id="updated"></span></div>
+
+<h2 id="title">Current hunt</h2>
+<div class="bar"><div class="fill" id="fill" style="width:0"></div><span id="barText"></span></div>
+<div id="deadline" class="muted"></div>
+<dl>
+  <dt>Committed</dt><dd id="committed"></dd>
+  <dt>HP</dt><dd id="hp"></dd>
+  <dt>Next 1 CAL pays</dt><dd id="fee"></dd>
+  <dt>Hoard</dt><dd id="hoard"></dd>
+  <dt>Supply</dt><dd id="supply"></dd>
+  <dt>Burned so far</dt><dd id="burned"></dd>
+  <dt>Access keys on the contract</dt><dd id="keys"></dd>
+</dl>
+
+<h2>Hunt log</h2>
+<table><thead><tr><th>Hunt</th><th>HP</th><th>Committed</th><th>Hunters</th><th>Outcome</th><th>Pot</th><th>Claims</th></tr></thead>
+<tbody id="log"></tbody></table>
+
+<script>
+const RPC = new URLSearchParams(location.search).get("rpc") || "https://test.rpc.fastnear.com";
+const $ = (id) => document.getElementById(id);
+async function rpc(method, params) {
+  const r = await fetch(RPC, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+  const body = await r.json();
+  if (body.error) throw new Error(JSON.stringify(body.error));
+  return body.result;
+}
+async function view(contract, method, args) {
+  const r = await rpc("query", { finality: "final", request_type: "call_function", account_id: contract,
+    method_name: method, args_base64: btoa(JSON.stringify(args)) });
+  return JSON.parse(new TextDecoder().decode(new Uint8Array(r.result)));
+}
+const cal = (y) => { const v = BigInt(y); const f = (v % 10n ** 18n).toString().padStart(18, "0").slice(0, 2);
+  return `${(v / 10n ** 18n).toLocaleString("en")}.${f} CAL`; };
+// Entry fee on the next token: tribute + fill fee x fill (capped at a full bar), as in the contract's fill_fee.
+const fee = (c, h, cfg) => (cfg.tribute_bps + cfg.fill_fee_bps * Math.min(Number(BigInt(c) * 10000n / BigInt(h)) / 10000, 1)) / 100;
+const hunts = new Map();
+async function refresh(contract) {
+  const [cfg, h, t, keys, block] = await Promise.all([view(contract, "config", {}), view(contract, "current_hunt", {}),
+    view(contract, "totals", {}), rpc("query", { finality: "final", request_type: "view_access_key_list", account_id: contract }),
+    rpc("block", { finality: "final" })]);
+  const pct = Math.min(100, Number(BigInt(h.committed) * 10000n / BigInt(h.hp)) / 100);
+  $("title").textContent = `Current hunt: #${h.id}`;
+  $("fill").style.width = pct + "%";
+  $("barText").textContent = `${pct.toFixed(1)}% of HP`;
+  const left = h.deadline - block.header.height;
+  $("deadline").textContent = left > 0 ? `${left} blocks left (deadline ${h.deadline}, about ${Math.round(left * 0.6 / 60)} min)` :
+    `Deadline ${h.deadline} passed: anyone can resolve (${BigInt(h.committed) >= BigInt(h.hp) && h.committed !== "0" ? "Slain" : "Escaped"})`;
+  $("committed").textContent = `${cal(h.committed)} by ${h.hunters} hunter(s)`;
+  $("hp").textContent = cal(h.hp);
+  $("fee").textContent = `${fee(h.committed, h.hp, cfg).toFixed(2)}% entry fee (1% + up to 10% as the bar fills)`;
+  $("hoard").textContent = cal(t.hoard);
+  $("supply").textContent = cal(t.supply);
+  $("burned").textContent = cal(t.burned);
+  $("keys").textContent = keys.keys.length === 0 ? "0 (locked)" : String(keys.keys.length);
+  for (let id = 0; id < h.id; id++) if (!hunts.has(id) || hunts.get(id).claims < hunts.get(id).hunters) hunts.set(id, await view(contract, "hunt", { id }));
+  hunts.set(h.id, h);
+  $("log").innerHTML = [...hunts.values()].reverse().map((x) => `<tr><td>#${x.id}</td><td>${cal(x.hp)}</td><td>${cal(x.committed)}</td>
+    <td>${x.hunters}</td><td class="${x.outcome ?? ""}">${x.outcome ?? "open"}</td><td>${x.outcome === "Slain" ? cal(x.pot) : "–"}</td>
+    <td>${x.claims}/${x.hunters}</td></tr>`).join("");
+  $("updated").textContent = `block ${block.header.height}, ${new Date().toLocaleTimeString()}`;
+}
+(async () => {
+  const contract = new URLSearchParams(location.search).get("contract") || (await (await fetch("/testnet/run.json")).json()).contract;
+  $("contract").textContent = contract;
+  const loop = async () => { try { await refresh(contract); } catch (e) { $("updated").textContent = "RPC error: " + e.message; } setTimeout(loop, 5000); };
+  loop();
+})();
+</script>
+</body>
+</html>

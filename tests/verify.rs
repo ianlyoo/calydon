@@ -145,7 +145,7 @@ async fn rule_a_hunts() -> Result<()> {
         &format!("hunt 2: 1000 committed vs HP 1000 -> Slain, alice gets 1000 + whole pot {pot}; hunt 3: 0 hunters -> Escaped; hunt 4 HP {} CAL", num(&h4["hp"])? / C));
     held(&mut n, "I1 conservation held after every step: holder balances + hoard + locked + unclaimed = supply = launch - burns",
         &format!("final supply {} = launched {launched} - burned {}", num(&t["supply"])?, num(&t["burned"])?));
-    println!("Calydon verify (rule A): {n} claims held, 0 broken.");
+    println!("Calydon verify (rule A, arithmetic-test values: no fill fee, HP x1.25/x0.8): {n} claims held, 0 broken.");
     Ok(())
 }
 
@@ -230,7 +230,7 @@ async fn rule_b_and_splitting() -> Result<()> {
     ensure!(nets[1] <= nets[0], "split {} > whole {}", nets[1], nets[0]);
     held(&mut n, "I3 on chain: splitting a stake of 2 into 1 + 1 does not pay more (shares round down, tributes round up)",
         &format!("one account: net {:+} yocto; two accounts: net {:+} yocto in total (the 20,000-case property test is in src/tests.rs)", nets[0], nets[1]));
-    println!("Calydon verify (rule B, splitting): {n} claims held, 0 broken.");
+    println!("Calydon verify (rule B and splitting, arithmetic-test values): {n} claims held, 0 broken.");
     Ok(())
 }
 
