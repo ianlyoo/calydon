@@ -9,6 +9,7 @@
   "scripts": {
     "verify": "cargo test --locked -- --nocapture --test-threads=1",
     "simulate": "cargo run --locked --release --quiet --example simulate --",
+    "sim-tables": "node scripts/sim-tables.mjs",
     "hunt": "cargo run --locked --quiet --example hunt --",
     "observe-testnet": "node scripts/observe-testnet.mjs",
     "verify:reproducible": "node scripts/verify-reproducible.mjs",
