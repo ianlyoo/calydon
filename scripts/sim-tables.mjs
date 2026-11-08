@@ -63,8 +63,8 @@ for (const [rule, rs] of Object.entries(byRule)) {
   console.log(`| ${rule} | ${rs.length} | ${meanSd(rs.map((r) => r.kill_rate_pct)).replace(/^\+/, "")} | ${cells.join(" | ")} | ${Object.entries(tops).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(", ")} |`);
 }
 
-// sim-converge writes summary.json at the end; if a run was stopped early, rebuild it from the
-// generation files by replaying the same update rule from the default 250 x 4 start.
+// sim-converge rewrites summary.json after each generation; without one (a run from before v1.2), rebuild
+// it from the generation files by replaying the same update rule from the default 250 x 4 start.
 function convergeFromGens() {
   const names = ["early committer", "threshold watcher", "quitter", "first mover (round 1, lands first)"];
   let mix = [250, 250, 250, 250];
@@ -96,7 +96,8 @@ else {
     const n = conv.strategies.map((s) => g.net_pct_of_start[s]);
     console.log(`| ${g.generation} | ${g.seed} | ${g.mix_per_mille.join(" / ")} | ${g.kill_rate_pct.toFixed(2)}% | ${n.map(pct).join(" | ")} |`);
   }
-  console.log(`\nMix after the last generation: ${conv.final_mix_per_mille.join(" / ")}${conv.partial ? ` (${conv.generations.length} generations; the run was stopped before 10)` : ""}.`);
+  const partial = conv.partial || conv.complete === false;
+  console.log(`\nMix after the last generation: ${(conv.final_mix_per_mille ?? conv.next_mix_per_mille).join(" / ")}${partial ? ` (${conv.generations.length} generations; the run was stopped before 10)` : ""}.`);
 }
 
 console.log(`\nOracle: ${oracle.files} result files, ${oracle.hunts} hunts, ${oracle.commits} commits and ${oracle.claims} claims checked exactly against the simulator's independent arithmetic; ${oracle.mismatches} mismatches.`);
