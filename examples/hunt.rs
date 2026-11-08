@@ -1,6 +1,6 @@
 //! `npm run hunt -- <command>`: play Calydon on NEAR testnet from faucet accounts.
 //!
-//!   launch [--hunt-blocks 300]   your own locked instance: a faucet account holds the supply, hunters
+//!   launch [--hunt-blocks 600]   your own locked instance: a faucet account holds the supply, hunters
 //!                                alice and bob get 5000 CAL each (keys under .credentials/testnet/)
 //!   status                       the current hunt, the hoard and the supply (read-only)
 //!   commit <CAL> --as <name>     lock a stake in the current hunt; the entry fee is paid on top
@@ -105,7 +105,7 @@ async fn main() -> Result<()> {
     let worker = testnet().await?;
     match args.first().map(String::as_str) {
         Some("launch") => {
-            let blocks: u64 = flag(&args, "--hunt-blocks").unwrap_or("300").parse().context("--hunt-blocks")?;
+            let blocks: u64 = flag(&args, "--hunt-blocks").unwrap_or("600").parse().context("--hunt-blocks")?;
             let cfg = launch_config(1_000 * C, blocks, blocks.div_ceil(4));
             let l = launch_testnet(&worker, "calydon-play", &["alice", "bob"], cfg, 1_000_000 * C, 1_000 * C, 5_000 * C, KEYS).await?;
             std::fs::write(format!("{KEYS}/play.json"), serde_json::to_string_pretty(&json!({"contract": l.cal.id(), "holder": l.root.id()}))?)?;
