@@ -4,7 +4,10 @@ A memecoin you hunt together, on NEAR. Holders lock their own CAL against a beas
 deadline. If the total reaches the HP, the beast is slain and the hunters share the hoard. If it
 falls short, the beast escapes with 10% of every stake, and that 10% burns.
 
-Status: **v1.2.2, NEAR testnet only.** v1.2.1 and v1.2.2 change only the page (below); the contract, `res/calydon.wasm`
+**Play:** [ianlyoo.github.io/calydon/status/](https://ianlyoo.github.io/calydon/status/) (NEAR testnet, Intear Wallet; any testnet account takes a
+1,000 CAL starter). The same page runs locally with `npm run page` (§3).
+
+Status: **v1.2.3, NEAR testnet only.** v1.2.1 to v1.2.3 change only the page and its hosting (below); the contract, `res/calydon.wasm`
 and the testnet instance are those of v1.2. The v1.2 instance
 [`cal.calydon-v12-1794130347.testnet`](https://testnet.nearblocks.io/address/cal.calydon-v12-1794130347.testnet)
 was created, deployed and initialised in **one transaction** and has **never had an access key**, so
@@ -25,6 +28,10 @@ still checks one). What v1.2 changes, each with its check:
 | At most 20 starters per hunt (`starters_per_hunt`, reset when a hunt opens) | `v1_2_storage_starter_transfers` claim 1; `config()` |
 | The page shows "closed (unresolved)" for a hunt past its deadline that nobody resolved yet, the step-1 fee and what a commit pays if it lands after step 1, and starters left this hunt | §3; [docs/browser/](docs/browser/) |
 | Simulation re-run on the v1.2 wasm: 5 launch seeds and a replicator run; whale count for small populations; no NaN for an empty strategy; the replicator writes its summary every generation | §5; MECHANIC.md §3 |
+
+**v1.2.3 (hosting only, no new instance).** The page is served by GitHub Pages from the root of
+`main` ([ianlyoo.github.io/calydon/status/](https://ianlyoo.github.io/calydon/status/)); `.nojekyll` makes Pages serve the files as they are, so
+`/status/` and `../testnet/run.json` resolve as they do under `npm run page`.
 
 **v1.2.2 (page only, no new instance).** Each RPC read of the page is tried up to 4 times with a
 growing wait (0.5, 1, 2 s) when the public RPC rate-limits or times out, so a short rate limit no
@@ -238,7 +245,7 @@ Calydon page: http://127.0.0.1:8494/status/  (Ctrl-C to stop)
 
 Open that address (`PORT=<n> npm run page` serves on another port). `status/` is a static page (HTML, one script, and the pinned wallet bundle in
 `status/vendor/`); `npm run page` only serves it and `testnet/run.json` from this machine, and the
-same files can be hosted as they are. Nothing is hosted by this repository. The page reads the
+same files can be hosted as they are: GitHub Pages serves them from `main` at https://ianlyoo.github.io/calydon/status/. The page reads the
 public testnet RPC every 4 seconds (older hunts with unclaimed entries about once a minute; each read is retried up to 3 times within about 4 seconds; after a read that still fails, often a rate limit, it waits up to 32 seconds); `?contract=<id>` shows another instance (for example one you
 launched in §4) and `?rpc=<url>` uses another RPC.
 
