@@ -31,7 +31,8 @@ Why each rule exists, and the problem the rising entry fee answers: [MECHANIC.md
 
 ## 1. Check the contract in one command → see every claim `HELD`
 
-Prerequisites (Linux, macOS or WSL, x86_64 or arm64):
+Prerequisites (we ran every command below on macOS on Apple Silicon; the Debian/Ubuntu line is
+given for Linux but was not run for this repository):
 
 - a C toolchain, `pkg-config` and OpenSSL headers (Debian/Ubuntu:
   `apt-get install -y build-essential pkg-config libssl-dev curl git nodejs npm`; macOS: the Xcode
@@ -126,8 +127,9 @@ Hunt log:
 All 5 checks hold.
 ```
 
-If the public RPC is slow, point the scripts at another one with `CALYDON_TESTNET_RPC=<url>`
-(default `https://test.rpc.fastnear.com`).
+The scripts try the public FastNEAR archival RPC, then `test.rpc.fastnear.com`, then
+`archival-rpc.testnet.near.org`; `CALYDON_TESTNET_RPC=<url>` replaces that list (and the RPC of the
+CLI, whose default is `https://test.rpc.fastnear.com`).
 
 ### The recorded testnet run
 
@@ -284,7 +286,9 @@ commit with `git archive` in the pinned image
 `docker.io/library/rust:1.99.1-slim-bookworm@sha256:392f2219…` (linux/amd64; on an arm64 host Docker
 emulates it and the build runs one job at a time: 8 minutes on an Apple Silicon Mac), and
 compares the result with `res/calydon.wasm`, `res/calydon.wasm.sha256` and the code hash deployed on
-testnet. Expected output:
+testnet. On Apple Silicon the emulated build crashed once in five one-job runs (`linking with cc failed:
+signal: 11 (SIGSEGV)`, an emulator crash, not a byte difference); running it again passed. Expected
+output:
 
 ```text
 building commit aa316382f0dbfd609af2cb6eae8443de73df1925 in docker.io/library/rust:1.99.1-slim-bookworm@sha256:392f221964669402bf4ae133d2a46c3ae270f64734133f4b2703d40019235c1a with CARGO_BUILD_JOBS=1
@@ -305,7 +309,7 @@ Source, committed wasm and deployed code are the same bytes.
 
 | Path | What |
 |---|---|
-| `src/lib.rs` | The contract: NEP-141 + NEP-145 (near-contract-standards), `commit` / `resolve` / `claim`, the views, NEP-297 events. Pure arithmetic (`fill_fee`, `share`, `burn_of`) is public for the tests. |
+| `src/lib.rs` | The contract: NEP-141 + NEP-145 (near-contract-standards), `commit` / `resolve` / `claim`, the views, NEP-297 events. Pure arithmetic (`fill_fee`, `share`, `ceil_bps`, `floor_bps`) is public for the tests. |
 | `src/tests.rs` | Unit tests, including the 20,000-case splitting property test. |
 | `tests/verify.rs` | `npm run verify`: sandbox scenarios against `res/calydon.wasm`. |
 | `tests/testnet.rs` | `npm run execute-testnet`: the recorded testnet run. |
