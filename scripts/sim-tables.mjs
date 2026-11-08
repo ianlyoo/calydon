@@ -41,14 +41,14 @@ const meanSd = (xs) => {
   return `${pct(m)} ± ${sd.toFixed(2)}`;
 };
 
-const LAUNCH = [494, 1, 2, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010];
-console.log("### 3.1 Launch values, 13 seeds (fill fee up to 10%, HP x1.1 / x0.7, burn 10%, launch hoard 1%, first HP 3%)\n");
+const LAUNCH = [494, 1, 2, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010].filter((x) => existsSync(`sim/seed-${x}-hp300.json`));
+console.log(`### 3.1 Launch values, ${LAUNCH.length} seeds (fill fee up to 10%, HP x1.1 / x0.7, burn 10%, launch hoard 1%, first HP 3%)\n`);
 console.log("Net result per strategy over 60 hunts, % of its starting balance. Rule A rows run the same values with the HP-cap rule, for comparison.\n");
 console.log(head);
 const byRule = { B: [], A: [] };
 for (const s of LAUNCH) {
   console.log(rows(`seed-${s}-hp300.json`, `seed ${s}`).join("\n"));
-  for (const r of load(`seed-${s}-hp300.json`)?.results ?? []) byRule[ruleOf(r)].push(r);
+  for (const r of load(`seed-${s}-hp300.json`).results) byRule[ruleOf(r)].push(r);
 }
 console.log("\nMean ± sample sd over the seeds above (n per rule shown):\n");
 console.log(`| Rule | n | Kill rate % | ${cols.join(" | ")} | Top (count of seeds) |\n|${"---|".repeat(cols.length + 4)}`);
@@ -60,24 +60,34 @@ for (const [rule, rs] of Object.entries(byRule)) {
     const xs = rs.map((r) => netOf(r)[c]).filter((x) => x != null);
     return xs.length > 1 ? meanSd(xs) : "–";
   });
-  console.log(`| ${rule} | ${rs.length} | ${meanSd(rs.map((r) => r.kill_rate_pct))} | ${cells.join(" | ")} | ${Object.entries(tops).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(", ")} |`);
+  console.log(`| ${rule} | ${rs.length} | ${meanSd(rs.map((r) => r.kill_rate_pct)).replace(/^\+/, "")} | ${cells.join(" | ")} | ${Object.entries(tops).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(", ")} |`);
 }
 
-console.log("\n### 3.2 Other first HP (seed 1001)\n");
-console.log(head);
-for (const [f, l] of [["seed-1001-hp100.json", "seed 1001, first HP 1%"], ["seed-1001-hp900.json", "seed 1001, first HP 9%"]])
-  console.log(rows(f, l).join("\n"));
-
-console.log("\n### 3.3 The same wasm without the fill fee (`--set fill_fee_bps=0`)\n");
-console.log(head);
-for (const s of [1001, 1002, 1003]) console.log(rows(`seed-${s}-hp300-fillfee0.json`, `seed ${s}, no fill fee`).join("\n"));
-
-console.log("\n### 3.4 Other burn and launch hoard (not the launch values: `--burn-bps 300 --hoard-bps 500`)\n");
-console.log(head);
-console.log(rows("seed-1001-hp300-burn300-hoard500.json", "seed 1001, burn 3%, launch hoard 5%").join("\n"));
-
-const conv = load("converge/summary.json");
-console.log("\n### 3.5 Following the money: replicator runs (`npm run sim-converge`, rule B)\n");
+// sim-converge writes summary.json at the end; if a run was stopped early, rebuild it from the
+// generation files by replaying the same update rule from the default 250 x 4 start.
+function convergeFromGens() {
+  const names = ["early committer", "threshold watcher", "quitter", "first mover (round 1, lands first)"];
+  let mix = [250, 250, 250, 250];
+  const generations = [];
+  for (let g = 0; existsSync(`sim/converge/gen-${g}.json`); g++) {
+    const d = load(`converge/gen-${g}.json`), r = d.results[0];
+    const net = names.map((n) => r.strategies.find((x) => x.strategy === n).net_pct_of_start);
+    generations.push({ generation: g, seed: d.seed, mix_per_mille: mix, kill_rate_pct: r.kill_rate_pct,
+      net_pct_of_start: Object.fromEntries(names.map((n, i) => [n, net[i]])) });
+    const fit = net.map((x, i) => (mix[i] === 0 ? 0 : mix[i] * Math.max(0, 1 + x / 100)));
+    const sum = fit.reduce((a, b) => a + b, 0);
+    const next = fit.map((f) => Math.round((1000 * f) / sum));
+    next[next.indexOf(Math.max(...next))] += 1000 - next.reduce((a, b) => a + b, 0);
+    mix = next;
+  }
+  if (!generations.length) return null;
+  const d0 = load("converge/gen-0.json");
+  return { hunters: d0.hunters, hunts_per_generation: d0.results[0].hunts, partial: true,
+    update: "share x max(0, 1 + net % of start / 100), renormalised to 1000", strategies: names, generations, final_mix_per_mille: mix };
+}
+const conv = load("converge/summary.json") ?? convergeFromGens();
+if (conv) for (let g = 0; g < conv.generations.length; g++) results(`converge/gen-${g}.json`);
+console.log("\n### 3.2 Following the money: replicator runs (`npm run sim-converge`, rule B)\n");
 if (!conv) console.log("(sim/converge/summary.json missing)");
 else {
   console.log(`${conv.hunters} hunters, ${conv.hunts_per_generation} hunts per generation; next share = ${conv.update}. Mix in per mille (early / watcher / quitter / first mover); net % of start per strategy in that generation.\n`);
@@ -86,7 +96,7 @@ else {
     const n = conv.strategies.map((s) => g.net_pct_of_start[s]);
     console.log(`| ${g.generation} | ${g.seed} | ${g.mix_per_mille.join(" / ")} | ${g.kill_rate_pct.toFixed(2)}% | ${n.map(pct).join(" | ")} |`);
   }
-  console.log(`\nMix after the last generation: ${conv.final_mix_per_mille.join(" / ")}.`);
+  console.log(`\nMix after the last generation: ${conv.final_mix_per_mille.join(" / ")}${conv.partial ? ` (${conv.generations.length} generations; the run was stopped before 10)` : ""}.`);
 }
 
 console.log(`\nOracle: ${oracle.files} result files, ${oracle.hunts} hunts, ${oracle.commits} commits and ${oracle.claims} claims checked exactly against the simulator's independent arithmetic; ${oracle.mismatches} mismatches.`);

@@ -12,7 +12,7 @@ execution outcomes; if a claim were false, the command would exit non-zero.
 | `npm run verify` | Rust (rustup), Node, network for the first download. No Docker, account or key. | Section A: the unit tests and 23 sandbox claims against the committed `res/calydon.wasm` |
 | `npm run observe-testnet` | Node only, no key | Section B: the deployed code, the one-transaction init and 0 access keys, the launch values, the 23 recorded transactions and the totals on testnet |
 | `npm run verify:reproducible` | Docker (pulls the pinned linux/amd64 Rust image) | Section C: source → `res/calydon.wasm` → testnet code hash are the same bytes |
-| `npm run simulate`, `npm run sim-tables`, `npm run sim-converge` | as `npm run verify`; @@SIMTIME@@ | Section D: MECHANIC.md's tables come from the committed wasm, checked against an independent oracle |
+| `npm run simulate`, `npm run sim-tables`, `npm run sim-converge` | as `npm run verify`; about 25–30 minutes per seed, about 55 minutes for `sim-converge` | Section D: MECHANIC.md's tables come from the committed wasm, checked against an independent oracle |
 | `npm run hunt -- …` | Node, Rust, network; the testnet faucet (free) | Section E: starter / commit / resolve / claim from your own faucet accounts |
 | `npm run page` | Node; a browser and a testnet account in Intear Wallet to sign | Section F: the page signs the same calls |
 
@@ -120,9 +120,10 @@ Full output: [README §6](README.md#6-rebuild-the-wasm--see-the-same-bytes-as-on
 
 | Claim | Command | Expected |
 |---|---|---|
-| MECHANIC.md §3's tables are printed from the committed result files | `npm run sim-tables` | the same tables as in MECHANIC.md §3, character for character |
-| the result files come from the committed wasm | `npm run simulate -- --seed 494` | the header names `wasm 995d5961…554ec`; the run ends `Written: sim/seed-494-hp300.json` and exits 0 only if every stake, refund, total and final balance matched the simulator's own arithmetic and I1 held |
-| a re-run reproduces the table up to run-to-run variation | `npm run simulate -- --seed 494 --out mine.json`, then compare `sim/mine.json` with MECHANIC.md §3.3 | in our three runs: the same kill rate (49/60 rule B, 48/60 rule A) and the same sign for every rule-B strategy; single percentages moved by up to 13 points and the top strategy changed once (the sandbox picks the order of same-round commits, and the fee depends on it) |
+| MECHANIC.md §3.1 and §3.2 are printed from the committed result files | `npm run sim-tables` | the same tables as in MECHANIC.md §3.1–3.2, character for character, ending with the oracle totals and `0 mismatches` |
+| the result files come from the committed wasm | `npm run simulate -- --seed 494` | the header names `wasm 0f0b8ce7…754d`; the run ends `Written: sim/seed-494-hp300.json` and exits 0 only if every commit's fee and weight, every hunt's pot and next HP, every claim and every final balance matched the independent oracle in `examples/simulate.rs` and I1 held |
+| the replicator table comes from the same simulator | `npm run sim-converge` | `final mix (early, watcher, quitter, first mover, per mille): …` and `sim/converge/summary.json`; a re-run varies (same-round commit order) |
+| a re-run reproduces the table up to run-to-run variation | `npm run simulate -- --seed 494 --out mine.json`, then compare `sim/mine.json` with MECHANIC.md §3.1 | single percentages move between runs (the sandbox picks the order of same-round commits, and the fee depends on it); compare with the mean ± sd row |
 
 ## E. Playing on testnet from the command line
 

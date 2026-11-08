@@ -4,20 +4,27 @@ Calydon (CAL) is an NEP-141 token with one game built into the contract: holders
 tokens against a beast's HP before a deadline. If the community's total reaches the HP, the beast is
 slain and the committers share the hoard. If it falls short, the beast escapes with 10% of every
 stake, and that 10% burns. All numbers below are launch constants, fixed at `new` and readable through
-`config()`; the contract has no owner, setter or pause, and the testnet instance has no access key.
+`config()`; the contract has no owner, setter or pause, and the testnet instance never had an access
+key (it was created, deployed and initialised in one transaction). This describes v1.1; v1.0 and its
+testnet instance are superseded (changes: [docs/journey.md](docs/journey.md)).
 
 ## 1. Rules, and why each one exists
 
 | Rule (contract) | Launch value | Why |
 |---|---|---|
-| `commit(amount)` locks your own CAL in the current hunt. | – | Joining costs something you hold. Nothing is minted for taking part, so creating extra accounts creates no extra reward (section 4). |
+| `commit(amount)` locks your own CAL in the current hunt; at least `min_stake`. | min 1 CAL | Joining costs something you hold. Nothing is minted for taking part, so creating extra accounts creates no extra reward in a hunt (section 4; the starter below is the exception). |
+| A commit that creates your entry in a hunt attaches `entry_deposit` in NEAR; a later commit to the same hunt attaches 1 yoctoNEAR. `claim` sends the deposit back. `resolve` and `starter` attach `record_deposit`, which stays (their records stay). Each of these calls checks that the storage it added costs no more than the NEAR attached, and refuses otherwise (`STORAGE_NOT_COVERED`). | 0.005 NEAR each (an entry is about 100 bytes = 0.001 NEAR) | Whoever adds a record pays for its storage, so commits cannot use up the contract's own NEAR and halt the game (section 5). |
+| `starter()`: a registered account takes `starter_amount` CAL from the starter bucket, once. | 1,000 CAL; bucket 980,000 CAL (98% of supply) | How CAL reaches players without a holder handing it out. Demo-level: more accounts get more starters (section 5). |
 | Entry fee on top of the stake, paid into the hoard: each token pays `tribute_bps + fill_fee_bps × fill`, where fill is how full the bar was when that token went in (capped at a full bar; tokens past the HP pay the full 11%). Summed over the stake, rounded up once (`fill_fee` in `src/lib.rs`). | 1% + up to 10% | Answers the fill-when-certain problem (section 2): a stake that only arrives when the kill is already certain pays the most, and that fee goes to the hunters of the next kill. |
 | Rule B, early weighting: a commit's weight is stake × the number of `step_blocks` steps left before the deadline. | 4 steps per hunt on testnet (300 blocks, steps of 75) | The same stake committed earlier, while the outcome is still open, gets a larger share. |
 | `resolve(hunt)`, by anyone, once, after the deadline. Slain if committed ≥ HP (a tie is a kill). | – | No keeper or oracle; the game cannot stall waiting for one account. |
 | Slain: each hunter claims stake + hoard × weight / total weight, rounded down. The rounding dust returns to the hoard after the last claim. | – | Shares can only round down, so the contract never pays out more than it holds. |
 | Escaped: each hunter claims stake − 10% (rounded up); the 10% burns. The hoard, including the escaped hunt's entry fees, rolls over to the next hunt. | burn 10% | A failed hunt costs something, so committing is a real decision; supply falls only this way. |
+| A hunt nobody joins resolves as escaped, so the next HP is ×0.7 (never below 1 yocto-CAL). | – | With nobody playing, the HP keeps shrinking (×0.7 per empty hunt: 0.7^10 ≈ 2.8% after ten) until someone can fill it alone; nothing is burned or paid. |
+| CAL sent to the contract with a plain `ft_transfer` is swept into the hoard by the next `resolve` (`sweep` event). | – | The contract's balance stays explained: held = hoard + locked + unclaimed + starter bucket after every resolve; between resolves the surplus is reported by `totals` and the observer. |
+| First Spear: each hunt records the account whose commit came first (`first_spear` in `hunt` / `current_hunt`). | – | Something to be seen doing on the page. It carries no CAL or weight; it is a name in the hunt record. |
 | Next HP after a kill: × `hp_up_bps`; after an escape: × `hp_down_bps`. | ×1.1 / ×0.7 | Difficulty follows the community. The equilibrium kill rate is p with 1.1^p · 0.7^(1−p) = 1, p = ln(1/0.7) / (ln 1.1 + ln(1/0.7)) ≈ 79%. The earlier ×1.25 / ×0.8 pinned it at 50% (1.25 × 0.8 = 1), where every stake that can fail lost money on average. |
-| Supply minted once at `new` (launch supply + launch hoard); never again. `storage_unregister` always refuses. | – | Supply can only fall, by escape burns. The standard unregister would burn a balance outside a hunt. |
+| Supply minted once at `new`: launch holder, launch hoard and starter bucket; never again. `storage_unregister` always refuses. | holder 10,000 (1%), hoard 10,000 (1%), starter bucket 980,000 (98%) of 1,000,000 CAL on testnet | Supply can only fall, by escape burns. The holder's share is small and stated; the standard unregister would burn a balance outside a hunt. |
 | Plain NEP-141 transfers: no fee on `ft_transfer` / `ft_transfer_call`. | – | A transfer fee would make an `ft_transfer_call` receiver get less than the stated amount. |
 | One `claim` per hunter per hunt; every call is O(1) (no loops over hunters). | – | Exactly-once settlement; no call grows with the number of hunters. |
 
@@ -51,101 +58,121 @@ difference on the same seeds.
 ## 3. Simulation
 
 `npm run simulate -- --seed 494` runs the model below on a local NEAR sandbox against the committed
-`res/calydon.wasm`, once with rule B (launch) and once with rule A (HP cap, for comparison). Every
-stake, escaped refund and hunt total is checked against the simulator's own arithmetic, and the run
-ends by checking I1 (conservation) and every account's balance against the chain; any mismatch fails
-the run. `npm run sim-tables` prints the tables below from the files in `sim/`.
+`res/calydon.wasm`, once with rule B (launch) and once with rule A (HP cap, for comparison).
+
+**Oracle.** Every number the contract produces is compared with an independent computation in
+`examples/simulate.rs` (big-integer arithmetic written separately from the contract's): for each
+commit, in the order the commits landed, the bar's fill before it, the exact integrated entry fee,
+the steps left and the weight, and what the account paid (stake + fee); for each hunt, the outcome,
+the pot, the next HP and the hoard; for each claim, the exact payout (stake + pot × weight / total,
+rounded down; or stake − the burn, rounded up) and the dust left after the last claim; at the end,
+I1 and every account's balance. Any difference stops the run. The totals of what was checked are at
+the end of the tables.
 
 **Model.**
 - Supply 100,000,000 CAL: 15 whales (5% of hunters) hold 30%, 285 other hunters 30%, a launch holder
-  who never plays 39%, launch hoard 1%.
-- 60 hunts, each 4 rounds of 25 blocks; within a round hunters act one by one in a seeded order and
-  each sees what was committed before it. Hunt 0 is an empty setup hunt; hunt 1 opens at the first HP.
-- Strategies (fixed rules, drawn once per seed):
+  who never plays 39%, launch hoard 1%. (The simulation gives the hunters their CAL directly; the
+  testnet instance uses the starter bucket instead.)
+- 60 hunts, each 4 rounds of 100 blocks; within a round hunters decide one by one in a seeded order
+  and each sees what was committed before it. Hunt 0 is an empty setup hunt; hunt 1 opens at the first
+  HP. Inside a round the commits are sent together, first movers' first, and the sandbox picks the
+  order they land in; the oracle follows the order they actually landed in.
+- Strategies (fixed rules, drawn once per seed; the 285 others split 2 : 2 : 1 : 1 among early,
+  watcher, quitter and first mover unless `--mix` says otherwise):
   - **early**: joins with a seeded chance and commits 10–40% of its balance in round 1;
   - **watcher**: commits 10–40% once the bar reaches its own threshold (30–90% of HP);
   - **quitter**: like early, but sits out 3 hunts after an escape;
+  - **first mover**: the best response named in the v1.1 brief ("commit in round 1 as early as
+    possible"): like early, but its round-1 commits are sent before everyone else's, so they land
+    first, into the emptiest bar, at the lowest fee and with full weight;
   - **late whale**: in the last round, fills the remaining HP alone if it can;
   - **solo whale**: in round 1, fills the remaining HP alone if it can;
   - **split whale**: a solo whale's twin (same holding) spread over 8 accounts, each with its own
     NEP-145 storage deposit (0.00125 NEAR, not counted in CAL).
+- Each account's first commit to a hunt attaches the 0.005 NEAR entry deposit; NEAR is not counted
+  in the CAL results.
 
 The value per strategy is the net result over 60 hunts as a % of its starting balance.
 
-### 3.1 Launch values (fill fee up to 10%, HP x1.1 / x0.7, burn 10%, launch hoard 1%)
+### 3.1 Launch values, 5 seeds (fill fee up to 10%, HP x1.1 / x0.7, burn 10%, launch hoard 1%, first HP 3%)
 
 Net result per strategy over 60 hunts, % of its starting balance. Rule A rows run the same values with the HP-cap rule, for comparison.
 
-| Cell | Rule | Kill rate | early | watcher | quitter | late whale | solo whale | split whale | Top | Supply after 60 hunts (CAL) |
+| Cell | Rule | Kill rate | early | watcher | quitter | first mover | late whale | solo whale | split whale | Top | Supply after 60 hunts (CAL) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| seed 494 | B | 81.67% (49/60) | +9.00 | -41.23 | +2.00 | +40.61 | -15.69 | +3.21 | +3.05 | first mover | 95,859,565 |
+| seed 494 | A | 81.67% (49/60) | -3.40 | -20.76 | -5.48 | +15.53 | -7.94 | +4.44 | +0.69 | first mover | 96,255,120 |
+| seed 1 | B | 81.67% (49/60) | +8.63 | -38.64 | -2.90 | +41.55 | -19.30 | +0.90 | +7.08 | first mover | 95,699,600 |
+| seed 1 | A | 81.67% (49/60) | -8.59 | -15.19 | -8.45 | +15.13 | -7.89 | +0.45 | +6.73 | first mover | 96,386,020 |
+| seed 2 | B | 80.00% (48/60) | -0.68 | -47.02 | -7.16 | +37.59 | -10.44 | +4.63 | +4.31 | first mover | 95,451,437 |
+| seed 2 | A | 80.00% (48/60) | -9.99 | -23.11 | -9.80 | +13.15 | -4.05 | +5.26 | -1.61 | first mover | 95,750,968 |
+| seed 1001 | B | 81.67% (49/60) | +4.63 | -40.41 | +2.21 | +45.32 | -15.46 | +5.37 | +2.04 | first mover | 95,905,464 |
+| seed 1001 | A | 81.67% (49/60) | -5.11 | -18.01 | -6.28 | +17.76 | -7.44 | +4.33 | -0.73 | first mover | 96,335,941 |
+| seed 1003 | B | 81.67% (49/60) | +12.44 | -36.26 | +2.40 | +47.36 | -22.53 | -0.11 | +1.12 | first mover | 95,675,169 |
+| seed 1003 | A | 80.00% (48/60) | -6.89 | -19.24 | -5.45 | +16.75 | -7.93 | -0.70 | +0.47 | first mover | 95,692,076 |
+
+Mean ± sample sd over the seeds above (n per rule shown):
+
+| Rule | n | Kill rate % | early | watcher | quitter | first mover | late whale | solo whale | split whale | Top (count of seeds) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| seed 494, first HP 3% | B | 81.67% (49/60) | +18.79 | -36.01 | +9.33 | -13.07 | +5.41 | +5.89 | early | 96,441,630 |
-| seed 494, first HP 3% | A | 80.00% (48/60) | -0.46 | -12.75 | -3.59 | -5.03 | +3.84 | -0.09 | solo whale | 96,757,234 |
-| seed 494, first HP 1% | B | 85.00% (51/60) | +16.97 | -34.92 | +13.22 | -10.52 | +6.20 | +6.92 | early | 97,163,113 |
-| seed 494, first HP 1% | A | 85.00% (51/60) | -2.57 | -9.90 | +0.95 | -3.68 | -1.43 | +8.54 | split whale | 97,655,093 |
-| seed 494, first HP 9% | B | 76.67% (46/60) | +19.02 | -34.53 | +6.40 | -15.32 | +1.26 | +2.95 | early | 95,441,252 |
-| seed 494, first HP 9% | A | 76.67% (46/60) | -1.23 | -10.48 | -8.07 | -5.94 | -0.10 | -0.29 | solo whale | 96,136,686 |
-| seed 1, first HP 3% | B | 81.67% (49/60) | +25.81 | -35.13 | +10.91 | -18.95 | +0.85 | +6.16 | early | 96,214,493 |
-| seed 1, first HP 3% | A | 81.67% (49/60) | +1.09 | -13.75 | -0.99 | -6.07 | -2.07 | +6.35 | split whale | 96,848,503 |
-| seed 2, first HP 3% | B | 80.00% (48/60) | +15.66 | -45.63 | +7.24 | -9.92 | +9.30 | +0.92 | early | 95,352,895 |
-| seed 2, first HP 3% | A | 80.00% (48/60) | +0.83 | -27.85 | -1.15 | -5.11 | +6.57 | -1.43 | solo whale | 95,560,773 |
+| B | 5 | 81.34 ± 0.75 | +6.80 ± 5.02 | -40.71 ± 4.01 | -0.69 ± 4.24 | +42.49 ± 3.88 | -16.68 ± 4.54 | +2.80 ± 2.36 | +3.52 ± 2.32 | first mover 5 |
+| A | 5 | 81.00 ± 0.91 | -6.80 ± 2.64 | -19.26 ± 2.97 | -7.09 ± 1.94 | +15.66 ± 1.75 | -7.05 ± 1.69 | +2.76 ± 2.69 | +1.11 ± 3.28 | first mover 5 |
 
-### 3.2 The same wasm without the fill fee (`--set fill_fee_bps=0`)
+### 3.2 Following the money: replicator runs (`npm run sim-converge`, rule B)
 
-| Cell | Rule | Kill rate | early | watcher | quitter | late whale | solo whale | split whale | Top | Supply after 60 hunts (CAL) |
-|---|---|---|---|---|---|---|---|---|---|---|
-| seed 494, first HP 3%, no fill fee | B | 80.00% (48/60) | -12.81 | -4.68 | -8.83 | -1.14 | +0.45 | +3.42 | split whale | 96,584,815 |
-| seed 494, first HP 3%, no fill fee | A | 80.00% (48/60) | -15.23 | -5.57 | -11.11 | +0.12 | +0.27 | +7.00 | split whale | 96,581,332 |
-| seed 1, first HP 3%, no fill fee | B | 81.67% (49/60) | -11.04 | -5.43 | -8.60 | -1.52 | +0.25 | +4.43 | split whale | 96,678,510 |
-| seed 1, first HP 3%, no fill fee | A | 81.67% (49/60) | -15.01 | -6.57 | -11.99 | +0.07 | +0.25 | +11.58 | split whale | 96,720,878 |
-| seed 2, first HP 3%, no fill fee | B | 80.00% (48/60) | -13.90 | -14.33 | -10.34 | -0.94 | +4.37 | +0.63 | solo whale | 95,281,137 |
-| seed 2, first HP 3%, no fill fee | A | 80.00% (48/60) | -15.37 | -15.67 | -12.03 | +0.06 | +8.47 | +0.44 | solo whale | 95,295,984 |
+300 hunters, 20 hunts per generation; next share = share x max(0, 1 + net % of start / 100), renormalised to 1000. Mix in per mille (early / watcher / quitter / first mover); net % of start per strategy in that generation.
 
-### 3.3 Run-to-run variation: seed 494, first HP 3%, three runs
+| Gen | Seed | Mix | Kill rate | early | watcher | quitter | first mover |
+|---|---|---|---|---|---|---|---|
+| 0 | 2000 | 250 / 250 / 250 / 250 | 85.00% | +4.55 | -12.89 | +1.76 | +15.93 |
+| 1 | 2001 | 255 / 213 / 249 / 283 | 85.00% | +2.38 | -14.65 | +1.66 | +13.35 |
+| 2 | 2002 | 257 / 179 / 249 / 315 | 85.00% | +0.97 | -13.99 | -1.64 | +14.45 |
+| 3 | 2003 | 255 / 151 / 240 / 354 | 85.00% | -1.36 | -17.37 | -2.29 | +12.33 |
+| 4 | 2004 | 249 / 124 / 233 / 394 | 85.00% | -1.63 | -14.33 | -2.28 | +11.76 |
+| 5 | 2005 | 240 / 104 / 223 / 433 | 85.00% | -4.53 | -19.18 | -2.41 | +10.71 |
+| 6 | 2006 | 227 / 83 / 215 / 475 | 85.00% | -2.38 | -15.06 | -2.10 | +9.81 |
+| 7 | 2007 | 216 / 69 / 206 / 509 | 85.00% | -3.06 | -18.50 | -4.03 | +8.95 |
+| 8 | 2008 | 206 / 55 / 194 / 545 | 85.00% | -7.36 | -19.24 | -5.82 | +7.29 |
 
-| Cell | Rule | Kill rate | early | watcher | quitter | late whale | solo whale | split whale | Top | Supply after 60 hunts (CAL) |
-|---|---|---|---|---|---|---|---|---|---|---|
-| run 1 | B | 81.67% (49/60) | +18.79 | -36.01 | +9.33 | -13.07 | +5.41 | +5.89 | early | 96,441,630 |
-| run 1 | A | 80.00% (48/60) | -0.46 | -12.75 | -3.59 | -5.03 | +3.84 | -0.09 | solo whale | 96,757,234 |
-| run 2 | B | 81.67% (49/60) | +10.92 | -36.77 | +4.85 | -9.75 | +18.21 | +2.46 | solo whale | 96,575,756 |
-| run 2 | A | 80.00% (48/60) | -2.23 | -12.60 | -2.97 | -4.91 | +5.73 | -0.66 | solo whale | 96,748,970 |
-| run 3 | B | 81.67% (49/60) | +18.74 | -35.76 | +9.44 | -13.31 | +6.11 | +5.38 | early | 96,454,795 |
-| run 3 | A | 80.00% (48/60) | +0.38 | -13.54 | -1.38 | -5.80 | +3.73 | -0.67 | solo whale | 96,704,308 |
+Mix after the last generation: 190 / 44 / 182 / 584 (9 generations; the run was stopped before 10).
 
-### 3.4 Other burn and launch hoard (not the launch values: `--burn-bps 300 --hoard-bps 500`)
-
-| Cell | Rule | Kill rate | early | watcher | quitter | late whale | solo whale | split whale | Top | Supply after 60 hunts (CAL) |
-|---|---|---|---|---|---|---|---|---|---|---|
-| seed 494, first HP 3%, burn 3%, launch hoard 5% | B | 83.33% (50/60) | +18.02 | -30.88 | +14.35 | -5.01 | +56.91 | +0.69 | solo whale | 98,989,883 |
-| seed 494, first HP 3%, burn 3%, launch hoard 5% | A | 81.67% (49/60) | +3.45 | -4.70 | +4.28 | -0.56 | +41.29 | -0.10 | solo whale | 98,965,225 |
+Oracle: 14 result files, 780 hunts, 139355 commits and 139355 claims checked exactly against the simulator's independent arithmetic; 0 mismatches.
 
 **Reading the tables (facts only).**
 
-- **Kill rate.** 76.67–85.00% in every cell, near the 79% equilibrium of ×1.1 / ×0.7. The three runs
-  of seed 494 had the same kill rate (49/60 under rule B, 48/60 under rule A).
-- **Launch values, rule B (§3.1, run 1 of each cell).** Early committers +15.66 to +25.81%, on top in
-  5 of 5 cells; quitters +6.40 to +13.22%; solo whales +0.85 to +9.30%; split whales +0.92 to +6.92%;
-  watchers −34.53 to −45.63%; late whales −9.92 to −18.95%. Supply after 60 hunts: 95,352,895 to
-  97,163,113 CAL (2.8–4.6% burned).
-- **Rule A with the same values.** Early committers −2.57 to +1.09%; a solo or split whale on top in
-  every cell. Rule B is the launch rule.
-- **Without the fill fee (§3.2).** Under rule B early committers −11.04 to −13.90%, watchers −4.68 to
-  −14.33%, and a split or solo whale on top in every cell. On the same seeds the fill fee moves the
-  early committers from −12.81 to +18.79% (seed 494), −11.04 to +25.81% (seed 1) and −13.90 to
-  +15.66% (seed 2), and the watchers from −4.68 to −36.01%, −5.43 to −35.13% and −14.33 to −45.63%.
-  The fee moves value from late committers to early ones; the kill rate barely changes.
-- **Run-to-run variation (§3.3) is not small for every strategy.** Under rule B every strategy kept
-  its sign in all three runs, but early committers ranged +10.92 to +18.79% and solo whales +5.41 to
-  +18.21%, and the top strategy was the early committers in runs 1 and 3 and the solo whale in run 2.
-  In run 2 the solo whales joined 23 hunts instead of 11. Under rule A the early committers' sign
-  changed between runs (−2.23 to +0.38%).
-- **Burn 3%, launch hoard 5% (§3.4, not the launch values).** The solo whale is on top under both
-  rules (+56.91% / +41.29%): it joined 41 of 60 hunts, paid 11,986,382 CAL in entry fees and received
-  17,459,591 CAL from hoards. The same cell measured at 08:20 on the `v-r2` branch (an earlier build
-  of the same rules) had the early committers on top (+35.99%, solo whale +29.86%).
-- **Solo vs split whale.** The split whale was above its solo twin in 4 of 5 launch cells under
-  rule B. The two are separate hunters that act at different places in the seeded order and compete
-  for the same remaining HP, so this compares positions in the order, not splitting. Splitting with the
-  timing held fixed is §4.
+- **Oracle.** 14 result files, 780 hunts, 139,355 commits and 139,355 claims: every fee, weight, pot,
+  next HP, payout and final balance equalled the independent computation; 0 mismatches.
+- **Kill rate.** 80.00–81.67% in every launch cell (mean 81.34 ± 0.75% under rule B), near the 79%
+  equilibrium of ×1.1 / ×0.7; 85% (17 of 20) in every replicator generation.
+- **Launch values, rule B (§3.1, 5 seeds).** The first mover was on top in 5 of 5 seeds
+  (+42.49 ± 3.88%). Early committers whose round-1 commits land after the first movers' +6.80 ± 5.02%
+  (−0.68 to +12.44), quitters −0.69 ± 4.24%, solo whales +2.80 ± 2.36%, split whales +3.52 ± 2.32%,
+  late whales −16.68 ± 4.54%, watchers −40.71 ± 4.01%. Supply after 60 hunts 95,451,437 to 95,905,464
+  CAL (4.1–4.5% burned).
+- **Rule A with the same values.** The first mover was on top in 5 of 5 seeds (+15.66 ± 1.75%); early
+  committers −6.80 ± 2.64%.
+- **Following the money (§3.2).** With each generation's mix set by the previous generation's results,
+  the first movers' share rose in every generation (250 → 584 per mille after 9 generations) and the
+  watchers' fell in every generation (250 → 44). The early committers' share peaked at 257 (generation 2) and the quitters' stayed at 249–250
+  until generation 2; both fell in every generation after that. As the first movers' share grew, their own result fell (+15.93% in generation 0 to +7.29% in
+  generation 8) and the early committers' turned negative (from generation 3). The run was stopped
+  after 9 of 10 generations at the deadline; it had not reached a fixed mix.
+- **Solo vs split whale.** The split whale was above its solo twin in 2 of 5 launch seeds under rule B.
+  They act at different places in the seeded order, so this compares positions, not splitting
+  (splitting with the timing held fixed is §4).
+
+### 3.3 Measured on the v1.0 wasm only
+
+These cells ran on the v1.0 wasm (`995d5961…`, the same fee, weight and HP rules; no entry deposit, no
+starter, no first-mover strategy) and were not re-run on v1.1 before the deadline. Their tables and
+result files are at tag `v1.0` ([MECHANIC.md §3.2–3.4 at v1.0](https://github.com/ianlyoo/calydon/blob/v1.0/MECHANIC.md#3-simulation)):
+
+- **Without the fill fee** (seeds 494, 1, 2): under rule B early committers −11.04 to −13.90% and a
+  split or solo whale on top in every cell; with the fee the same seeds had early committers +15.66 to
+  +25.81%. The fee moves value from late committers to early ones; the kill rate barely changed.
+- **Three runs of seed 494**: the kill rate and every rule-B sign held; single results moved by up
+  to 13 points and the top strategy changed in one run (the solo whale).
+- **Burn 3%, launch hoard 5%**: the solo whale on top under both rules (+56.91% / +41.29%).
 
 ## 4. Splitting a stake across accounts (I3), by arithmetic
 
@@ -174,20 +201,41 @@ many accounts.
   average fee over the fill it covers (1% + 10% × 0.5 = 6%), gets full rule-B weight, and the kill is
   certain from then on; everything committed after it in that hunt pays 11%. The fill fee makes a
   certain kill cost more the fuller the bar already is; it does not stop one large holder from making
-  the kill certain early. That strategy was on top in run 2 of §3.3 and in §3.4.
-- **The strategies are fixed rules.** They do not learn, react to each other or model people. Another
-  strategy mix can give other winners; the tables show what these six rules do, nothing more.
+  the kill certain early. On the v1.0 wasm that strategy was on top in one of three runs of seed 494 and in the burn 3% / launch
+  hoard 5% cell (§3.3).
+- **Landing first pays most.** The first mover (round-1 commits that land before everyone else's) was
+  on top in every launch cell under both rules (§3.1), and its share grew in every generation of the
+  replicator runs (§3.2). Rule B and the fill fee reward the earliest stake in the order commits land;
+  on a real chain that order is decided by when transactions reach the chain, so the game rewards
+  committing as soon as a hunt opens.
+- **The strategies are fixed rules.** They do not learn or model people. §3.2 lets the mix follow the
+  money between generations, but each hunter still follows its rule inside a generation. Another
+  strategy mix can give other winners; the tables show what these seven rules do, nothing more.
 - **Run-to-run variation.** Inside a round the commits are sent together and the sandbox picks the
-  order they land in. Under R2 the fee depends on that order, and so does whether a solo whale finds
-  an open bar in round 1, so the same seed gives different numbers each run (§3.3): the kill rate and
-  every rule-B sign held across three runs, but the top strategy changed in one of them and single
-  results moved by up to 13 points. The tables are three or fewer runs per cell, not averages.
+  order they land in. Under R2 the fee depends on that order, so the same seed gives different numbers
+  each run (on the v1.0 wasm, single results moved by up to 13 points across three runs, §3.3). §3.1
+  reports each seed once and the mean ± sample sd over the seeds; 5 seeds, fewer than the 10
+  asked for, because each run took about 25–30 minutes.
 - **Rounding.** All splitting statements are about integer arithmetic in yocto-CAL (18 decimals):
   shares round down, fees and burns round up, dust returns to the hoard. They say nothing about who
   owns which account.
-- **Storage cost.** Hunt records and unclaimed entries are stored on the contract account and paid
-  from its NEAR balance. Many tiny commits that are never claimed tie up that NEAR. There is no
-  minimum stake.
+- **Storage: the v1.0 halt, and the v1.1 fix.** In v1.0 every entry (about 97 bytes) and every hunt
+  record was paid from the contract account's own NEAR, and the smallest commit was 1 yocto-CAL. The
+  v1.0 instance had about 2.31 NEAR free, so about 2,400 one-yocto commits from fresh accounts would
+  have used it up; from then on every call that adds storage (a first commit to a hunt, and
+  `resolve`, which stores the next hunt) would fail, and the game would stop until someone sent the
+  account NEAR (anyone can; nobody has to, and the code cannot be replaced). v1.1: a commit that creates an
+  entry attaches 0.005 NEAR (returned by its claim), `resolve` and `starter` attach 0.005 NEAR, each
+  call checks that its storage growth is covered and refuses otherwise, and a commit must be at least
+  1 CAL. `npm run verify` shows it (`v1_1_storage_starter_sweep`, claims 2 and 3): an entry added 98
+  bytes (0.00098 NEAR) under the 0.005 NEAR attached, the contract's free NEAR did not fall over
+  commits, resolve and claims, and an instance configured with a 1-yocto entry deposit refuses the
+  commit with `STORAGE_NOT_COVERED` instead of paying for it. What is left: an entry that is never claimed keeps its 0.005 NEAR on the
+  contract, paid by the person who did not claim.
+- **The starter is demo-level.** `starter()` gives 1,000 CAL once per account. Accounts are free on
+  testnet (and cheap on mainnet), so whoever creates more accounts gets more starters, until the
+  bucket (980 starters) is empty. It answers "how does CAL reach players" for a testnet demo; it is not
+  a fair distribution and makes no claim to be one.
 - **Hunt 0 opens at `new`.** On a fresh launch the first hunt runs while the supply is still being
   distributed.
 - **No claim about fun, demand or price.** The simulation measures token flows under fixed rules. It

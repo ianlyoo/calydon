@@ -24,7 +24,7 @@ still checks it). What v1.1 changes, each with its check:
 | `resolve` sweeps CAL sent to the contract by plain transfer into the hoard; the observer reports any surplus | claim 4; testnet hunt 1 (50 CAL swept) |
 | create + deploy + `new` in one transaction (v1.0 deleted its keys afterwards) | `rule_a_hunts` claim 1; `observe-testnet` |
 | First Spear: each hunt records its first committer, shown on the page | claim 5; testnet hunt log |
-| Simulation: exact oracle for every fee, weight and payout, 13 seeds of the launch cell, a first-mover agent, a replicator run | §5 |
+| Simulation: exact oracle for every fee, weight and payout, 5 seeds of the launch cell with mean ± sd, a first-mover agent (on top in every cell), a replicator run | §5; MECHANIC.md §3 |
 
 Every claim below comes with the command that checks it and the output it printed for us.
 [VERIFY.md](VERIFY.md) lists each claim → command → expected output. The design, the simulation
@@ -48,7 +48,9 @@ Why each rule exists, and the problem the rising entry fee answers: [MECHANIC.md
 ## 1. Check the contract in one command → see every claim `HELD`
 
 Prerequisites. Both paths below were run for this repository: macOS on Apple Silicon, and a clean
-`ubuntu:24.04` container following exactly these lines (@@LINUXRUN@@).
+`ubuntu:24.04` container following exactly these lines (2026-11-08 17:18–17:22 KST, commit `aca1066`, arm64, Node 18.19.1: the clone was copied in
+because the repository is private; `npm run verify` took 3 min 5 s including the first build, and
+`npm run observe-testnet` printed `All 5 checks hold`).
 
 - **Debian/Ubuntu** (as root, or with `sudo`):
   ```sh
@@ -76,14 +78,14 @@ the committed `res/calydon.wasm` (the bytes deployed on testnet) and asserts eve
 contract state, balances and execution outcomes, checking conservation (I1) after every step. The
 first run downloads the crates and the sandbox binary. Nothing in it touches testnet.
 
-Expected output (abridged; @@VERIFYRUN@@):
+Expected output (abridged; from that container run):
 
 ```text
 test tests::fill_fees ... ok
 test tests::m2_counterexample_is_the_safe_direction ... ok
 test tests::rounding_helpers ... ok
 test tests::splitting_never_pays_more ... ok
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
 
 test execute_testnet ... ignored, uses NEAR testnet and the faucet; run with `npm run execute-testnet`
 
@@ -113,7 +115,7 @@ HELD  5  claim pays the CAL and sends the 5 mNEAR entry deposit back; First Spea
 Calydon verify (v1.1 storage, starter, sweep): 5 claims held, 0 broken.
 ok
 
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 110.19s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 95.86s
 ```
 
 `rule_a_hunts` and `rule_b_and_splitting` run the same wasm with arithmetic-test values (no fill fee,
@@ -128,7 +130,7 @@ npm run observe-testnet
 ```
 
 Read-only, Node only, no key. It reads [testnet/run.json](testnet/run.json) (the recorded v1.1 run)
-and asks the public testnet RPC. Output on @@OBSDATE@@ (the latest hunt is open or waiting to be
+and asks the public testnet RPC. Output on 2026-11-08 17:22 KST in the container above (the latest hunt is open or waiting to be
 resolved whenever you run it; anyone may resolve it):
 
 ```text
@@ -144,7 +146,7 @@ OK    config() = the launch values recorded at init
 OK    all 23 recorded transactions succeeded on chain with the recorded return values
       23 of 23, e.g. https://testnet.nearblocks.io/txns/3FZN7r2b6dvJoeqvKnTcb37yC3mMCWMpbWbn1d4sKJEv
 OK    totals: held >= hoard + locked + unclaimed + starter bucket (surplus reported); supply + burned = launched
-      supply 999980 CAL, burned 20, hoard 0, locked 0, unclaimed 0, starter bucket 976000; surplus 0 CAL
+      supply 999980 CAL, burned 20, hoard 0, locked 0, unclaimed 0, starter bucket 975000; surplus 0 CAL
 
 Hunt log:
   hunt 0: HP 1000 CAL, committed 1100 by 3, Slain, pot 10071 CAL, claims 3/3, First Spear alice.calydon-v11-1794122775.testnet
@@ -152,12 +154,14 @@ Hunt log:
   hunt 2: HP 770 CAL, committed 800 by 2, Slain, pot 103.318181 CAL, claims 2/2, First Spear bob.calydon-v11-1794122775.testnet
   hunt 3: HP 847 CAL, committed 0 by 0, Escaped, claims 0/0
   hunt 4: HP 592.9 CAL, committed 600 by 1, Slain, pot 36.355 CAL, claims 1/1, First Spear player.calydon-v11-1794122775.testnet
-  hunt 5: HP 652.19 CAL, committed 0 by 0, deadline passed, not resolved yet, claims 0/0
+  hunt 5: HP 652.19 CAL, committed 0 by 0, Escaped, claims 0/0
+  hunt 6: HP 456.533 CAL, committed 600 by 1, Slain, pot 43.17335 CAL, claims 1/1, First Spear player2.calydon-v11-1794122775.testnet
+  hunt 7: HP 502.1863 CAL, committed 0 by 0, deadline passed, not resolved yet, claims 0/0
 
 All 5 checks hold.
 ```
 
-Hunt 4 is the browser session of §3. The scripts try the public FastNEAR archival RPC, then
+Hunts 4 and 6 are the two browser sessions of §3 (the recorded one is hunt 6). The scripts try the public FastNEAR archival RPC, then
 `test.rpc.fastnear.com`, then `archival-rpc.testnet.near.org`; `CALYDON_TESTNET_RPC=<url>` replaces
 that list (and the RPC of the CLI, whose default is `https://test.rpc.fastnear.com`).
 
@@ -335,37 +339,46 @@ The pot was the 10,000 CAL launch hoard plus the two fees (24 + 47). Alice's com
 ## 5. Re-run the simulation → see MECHANIC.md's tables
 
 ```sh
-npm run simulate -- --seed 494     # about 13 minutes; writes sim/seed-494-hp300.json
+npm run simulate -- --seed 494     # about 25 minutes (three runs in parallel on an Apple Silicon Mac); writes sim/seed-494-hp300.json
 npm run sim-tables                 # prints MECHANIC.md §3's tables from the files in sim/
+npm run sim-converge               # 10 generations of 20 hunts whose strategy mix follows the money (about 55 minutes)
 ```
 
-300 hunters with six fixed strategies play 60 hunts against the committed `res/calydon.wasm` in a
-local sandbox, once under rule B (launch) and once under rule A for comparison; every stake, refund
-and total is checked against the simulator's own arithmetic, and the run fails on any mismatch.
+300 hunters with seven fixed strategies play 60 hunts against the committed `res/calydon.wasm` in a
+local sandbox, once under rule B (launch) and once under rule A for comparison. Every commit's fill,
+integrated fee, steps left and weight, every hunt's outcome, pot and next HP, every claim's payout and
+every final balance is compared with an independent computation in `examples/simulate.rs`
+(big-integer arithmetic written separately from the contract's); the run stops on any difference.
 Output of the run committed in `sim/`:
 
 ```text
-Calydon simulation (v1.0): seed 494, 300 hunters, 60 hunts, first HP 3% of supply, HP x1.1/x0.7, burn 10%, launch hoard 1%, wasm 995d5961af67e36a40c1f604c394952514897b3fec8802c5609ae52d163554ec
+Calydon simulation (v1.1): seed 494, 300 hunters, 60 hunts, first HP 3% of supply, HP x1.1/x0.7, burn 10%, launch hoard 1%, wasm 0f0b8ce7b02ca03d1edf1d4e0053a198f880cd1131e8dbaf288a0594ee15754d
 
-Rule B (early-commit weighting, launch rule): kill rate 81.67% (49/60), supply 100000000 -> 96441630 CAL
+Rule B (early-commit weighting, launch rule): kill rate 81.67% (49/60), supply 100000000 -> 95859565 CAL
   strategy                     hunters  joins  net % start  net/100 stk   supply share
-  early committer                  114   4387       18.79%         2.01         23.17%
-  threshold watcher                114   5905      -36.01%        -3.94        -33.65%
-  quitter                           57   1581        9.33%         1.43         13.36%
-  late whale (wait-and-fill)         7     24      -13.07%         -7.4         -9.86%
-  solo whale                         4     11        5.41%         1.87          9.29%
-  split whale                        4      9        5.89%         2.46          9.79%
+  early committer                   95   3709         9.0%          1.0          13.7%
+  threshold watcher                 95   5067      -41.23%        -4.25        -38.69%
+  quitter                           48   1374         2.0%         0.32          6.41%
+  first mover (round 1, lands first)      47   1784       40.61%         4.09         46.68%
+  late whale (wait-and-fill)         7     28      -15.69%        -7.51        -12.05%
+  solo whale                         4     10        3.21%         1.31          7.67%
+  split whale                        4      8        3.05%         1.55           7.5%
 
-Rule A (HP cap): kill rate 80.0% (48/60), supply 100000000 -> 96757234 CAL
+
+Rule A (HP cap): kill rate 81.67% (49/60), supply 100000000 -> 96255120 CAL
 ...
-Written: sim/seed-494-hp300.json (792.561016416s)
+Written: sim/seed-494-hp300.json (1515.192121667s)
 ```
 
+The *first mover* is the best response named in the v1.1 brief ("commit in round 1 as early as
+possible"): its round-1 commits are sent before everyone else's, so they land first. It was on top
+in every launch cell; MECHANIC.md §3.1 has 5 seeds with mean ± sd, and §3.2 what the strategy mix
+converges to when each generation's mix follows the previous generation's results.
+
 A re-run gives different numbers: inside a round the commits are sent together, the sandbox picks
-the order they land in, and the fee depends on that order. In three runs of seed 494 the kill rate
-and every rule-B sign held, but the top strategy was the early committers twice and the solo whale
-once, and single results moved by up to 13 points (MECHANIC.md §3.3). Other options: `--hp0-bps`, `--burn-bps`, `--hoard-bps`,
-`--hunters`, `--hunts`, `--set fill_fee_bps=0` (the same wasm without the fill fee), `--out <file>`.
+the order they land in (first movers' commits are sent first), and the fee depends on that order.
+Other options: `--hp0-bps`, `--burn-bps`, `--hoard-bps`, `--hunters`, `--hunts`, `--mix`,
+`--set fill_fee_bps=0` (the same wasm without the fill fee), `--out <file>`.
 
 ## 6. Rebuild the wasm → see the same bytes as on testnet
 
@@ -423,9 +436,11 @@ Libraries: near-sdk 5.30.1 and near-contract-standards 5.30.1 (contract); near-w
 
 ## Limits
 
-The watcher strategy loses by design; a whale that fills the whole HP in round 1 is not priced out
-and was on top in some runs; the simulated strategies are fixed rules; re-runs vary; the splitting statements are integer arithmetic about stakes, not about who owns which
-account; stored hunts cost the contract account NEAR; nothing here says anything about fun or
+The watcher strategy loses by design; committing first in a hunt pays most (the first mover was on top
+in every simulated launch cell); a whale that fills the whole HP in round 1 is not priced out; the
+simulated strategies are fixed rules; re-runs vary and MECHANIC.md §3.1 has 5 seeds, not 10; the starter is
+demo-level (more accounts, more starters); the splitting statements are integer arithmetic about stakes, not about who owns which
+account; nothing here says anything about fun or
 price. Details: [MECHANIC.md §5](MECHANIC.md#5-limits-stated-plainly). CAL exists on testnet only.
 
 ## How this was built
