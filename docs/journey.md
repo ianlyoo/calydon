@@ -48,6 +48,7 @@ those two files, and their raw JSON is not in this repository.
 | 2026-11-08 18:56–19:05 | CLI session on a fresh `npm run hunt -- launch` instance with the v1.2 code (README §4). | |
 | 2026-11-08 19:09–19:17 | Fresh clone of `f542e59` in a clean `ubuntu:24.04` container (arm64) following README §1: `npm run verify` 23 claims held in 3 min 10 s, `npm run observe-testnet` all 5 checks hold. `npm run verify:reproducible` on the Mac: rebuilt 008c805 byte-identical to `res/calydon.wasm` and to the code on testnet; `gitleaks git --redact .`: no leaks found. | |
 | 2026-11-08 20:00–21:00 | **v1.2.1, page only.** The first screen is the hunt: the boar's health left, time left and step, the hunters with weights and First Spear, the hoard, a three-step strip; the numbers behind a toggle. The hunt log's open / closed (unresolved) is worked out for every row from the latest block; hunters and entries come from one `view_state` read. | A frame of the demo video showed hunt 8 as "open" in the log after its deadline: the log was rendered after per-hunt reads that a rate-limited RPC failed, and an empty hunt cached before its resolve was never read again. |
+| 2026-11-08 22:00–23:00 | **v1.2.2, page only.** Every RPC read of the page is retried up to 3 times with a growing wait (0.5, 1, 2 s) on a rate limit, a timeout or a failed fetch; contract answers are not retried. | The demo's supply shot showed "RPC error … Failed to fetch" under Numbers and contract: the public RPC had rate-limited one read. |
 
 ## Evening notes
 

@@ -8,12 +8,29 @@ const RPC = params.get("rpc") || "https://test.rpc.fastnear.com";
 const TGAS = 10n ** 12n;
 const $ = (id) => document.getElementById(id);
 
+// Reads only (transactions go through the wallet). A public RPC rate-limits (HTTP 429, which a browser
+// often reports as a failed fetch) and times out now and then, so a read is tried up to 4 times, waiting
+// 0.5, 1 and 2 s (plus jitter) in between. An answer from the contract or the chain (an unknown account,
+// a failed view) is not retried.
+const transient = (e) => ["TIMEOUT_ERROR", "INTERNAL_ERROR"].includes(e.cause?.name) || e.name === "INTERNAL_ERROR";
 async function rpc(method, p) {
-  const r = await fetch(RPC, { method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params: p }) });
-  const body = await r.json();
-  if (body.error) throw new Error(JSON.stringify(body.error));
-  return body.result;
+  for (let attempt = 0; ; attempt++) {
+    let error;
+    try {
+      const r = await fetch(RPC, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params: p }) });
+      if (r.status === 429 || r.status >= 500) throw new Error(`HTTP ${r.status}`);
+      const body = await r.json();
+      if (!body.error) return body.result;
+      error = new Error(JSON.stringify(body.error));
+      if (!transient(body.error)) throw Object.assign(error, { final: true });
+    } catch (e) {
+      if (e.final || attempt >= 3) throw e;
+      error = e;
+    }
+    if (attempt >= 3) throw error;
+    await new Promise((ok) => setTimeout(ok, 500 * 2 ** attempt + Math.random() * 250));
+  }
 }
 async function view(method, args) {
   const r = await rpc("query", { finality: "optimistic", request_type: "call_function", account_id: contract,
